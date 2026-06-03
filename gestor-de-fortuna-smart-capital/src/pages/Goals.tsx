@@ -94,11 +94,11 @@ function Goals() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#121212] text-white">
+    <div className="min-h-screen bg-[#121212] text-white lg:flex">
       <Sidebar />
 
-      <div className="flex-1">
-        <header className="border-b border-white/10 px-8 py-5">
+      <div className="w-full flex-1 overflow-x-hidden">
+        <header className="border-b border-white/10 px-4 py-5 lg:px-8">
           <h1 className="text-2xl font-bold">
             Metas <span className="text-[#E0B04B]">Financieras</span>
           </h1>
@@ -108,11 +108,11 @@ function Goals() {
           </p>
         </header>
 
-        <main className="p-8">
-          <div className="rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-6">
+        <main className="p-4 lg:p-8">
+          <div className="rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-5 lg:p-6">
             <h2 className="text-xl font-bold">Nueva meta</h2>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -151,21 +151,21 @@ function Goals() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 type="date"
-                className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none md:col-span-2"
+                className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none sm:col-span-2"
               />
             </div>
 
             <button
               onClick={addGoal}
-              className="mt-6 rounded-full bg-[#E0B04B] px-6 py-3 font-bold text-black"
+              className="mt-6 w-full rounded-full bg-[#E0B04B] px-6 py-3 font-bold text-black sm:w-auto"
             >
               Crear meta
             </button>
           </div>
 
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
             {goals.length === 0 ? (
-              <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+              <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
                 <p className="text-gray-400">Aún no tienes metas creadas.</p>
               </div>
             ) : (
@@ -180,26 +180,26 @@ function Goals() {
                 return (
                   <div
                     key={goal.id}
-                    className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6"
+                    className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6"
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-sm text-[#E0B04B]">Meta financiera</p>
 
-                        <h3 className="mt-1 text-2xl font-bold">
+                        <h3 className="mt-1 break-words text-2xl font-bold">
                           {goal.name}
                         </h3>
                       </div>
 
                       <button
                         onClick={() => deleteGoal(goal.id)}
-                        className="rounded-full border border-red-400/40 px-4 py-2 text-sm font-bold text-red-400"
+                        className="w-full rounded-full border border-red-400/40 px-4 py-2 text-sm font-bold text-red-400 sm:w-auto"
                       >
                         Eliminar
                       </button>
                     </div>
 
-                    <p className="mt-5 text-gray-300">
+                    <p className="mt-5 break-words text-gray-300">
                       {goal.currency}
                       {goal.current_amount} / {goal.currency}
                       {goal.target_amount}
@@ -224,7 +224,7 @@ function Goals() {
 
                     <button
                       onClick={() => addContribution(goal)}
-                      className="mt-5 rounded-full border border-[#E0B04B]/40 px-5 py-2 font-bold text-[#E0B04B]"
+                      className="mt-5 w-full rounded-full border border-[#E0B04B]/40 px-5 py-2 font-bold text-[#E0B04B] sm:w-auto"
                     >
                       Agregar aporte
                     </button>

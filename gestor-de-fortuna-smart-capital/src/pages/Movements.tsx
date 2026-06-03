@@ -4,11 +4,13 @@ import { supabase } from "../lib/supabase"
 
 function Movements() {
   const today = new Date().toLocaleDateString("en-CA")
+
   const yesterdayDate = new Date()
   yesterdayDate.setDate(yesterdayDate.getDate() - 1)
   const yesterday = yesterdayDate.toLocaleDateString("en-CA")
 
   const currentDate = new Date()
+
   const [filterMonth, setFilterMonth] = useState(currentDate.getMonth() + 1)
   const [filterYear, setFilterYear] = useState(currentDate.getFullYear())
   const [showHistorical, setShowHistorical] = useState(false)
@@ -50,7 +52,10 @@ function Movements() {
   ])
 
   async function fetchCategories() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     const { data, error } = await supabase
@@ -68,7 +73,10 @@ function Movements() {
   }
 
   async function fetchSubcategories() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     const { data, error } = await supabase
@@ -85,7 +93,10 @@ function Movements() {
   }
 
   async function fetchMovements() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     let query = supabase
@@ -154,7 +165,10 @@ function Movements() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     const movementData = {
@@ -180,7 +194,11 @@ function Movements() {
     resetForm()
     fetchMovements()
 
-    alert(editingId ? "Movimiento actualizado correctamente." : "Movimiento guardado correctamente.")
+    alert(
+      editingId
+        ? "Movimiento actualizado correctamente."
+        : "Movimiento guardado correctamente."
+    )
   }
 
   function editMovement(movement: any) {
@@ -209,10 +227,7 @@ function Movements() {
     const confirmDelete = confirm("¿Seguro que quieres eliminar este movimiento?")
     if (!confirmDelete) return
 
-    const { error } = await supabase
-      .from("movements")
-      .delete()
-      .eq("id", id)
+    const { error } = await supabase.from("movements").delete().eq("id", id)
 
     if (error) {
       alert(error.message)
@@ -260,11 +275,11 @@ function Movements() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-[#121212] text-white">
+    <div className="min-h-screen bg-[#121212] text-white lg:flex">
       <Sidebar />
 
-      <div className="flex-1">
-        <header className="border-b border-white/10 px-8 py-5">
+      <div className="w-full flex-1 overflow-x-hidden">
+        <header className="border-b border-white/10 px-4 py-5 lg:px-8">
           <h1 className="text-2xl font-bold">
             Registrar <span className="text-[#E0B04B]">Movimiento</span>
           </h1>
@@ -274,8 +289,8 @@ function Movements() {
           </p>
         </header>
 
-        <main className="p-8">
-          <div className="max-w-4xl rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-6">
+        <main className="p-4 lg:p-8">
+          <div className="w-full rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-4 lg:max-w-4xl lg:p-6">
             <h2 className="text-xl font-bold">
               {editingId ? "Editar movimiento" : "Nuevo movimiento"}
             </h2>
@@ -348,7 +363,7 @@ function Movements() {
                   Fecha
                 </label>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
@@ -432,7 +447,7 @@ function Movements() {
               />
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-4">
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <button
                 onClick={saveMovement}
                 className="rounded-full bg-[#E0B04B] px-6 py-3 font-bold text-black"
@@ -451,10 +466,10 @@ function Movements() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+          <div className="mt-8 rounded-3xl border border-white/10 bg-[#1a1a1a] p-4 lg:p-6">
             <h2 className="text-xl font-bold">Filtros</h2>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-4">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {!showHistorical && (
                 <>
                   <select
@@ -534,7 +549,7 @@ function Movements() {
               )}
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-4">
+            <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <button
                 onClick={() => setShowHistorical(!showHistorical)}
                 className={`rounded-full px-6 py-3 font-bold ${
@@ -555,7 +570,7 @@ function Movements() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+          <div className="mt-8 rounded-3xl border border-white/10 bg-[#1a1a1a] p-4 lg:p-6">
             <h2 className="text-xl font-bold">Movimientos guardados</h2>
 
             <div className="mt-6 space-y-4">
@@ -567,7 +582,7 @@ function Movements() {
                 movements.map((movement) => (
                   <div
                     key={movement.id}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#111111] p-5"
+                    className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#111111] p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
                   >
                     <div>
                       <p className="font-bold">
@@ -586,7 +601,7 @@ function Movements() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-3">
                       <p
                         className={`text-xl font-bold ${
                           movement.type === "ingreso"

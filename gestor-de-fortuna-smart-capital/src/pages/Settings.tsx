@@ -38,13 +38,11 @@ function Settings() {
 
     if (!user) return
 
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({
-        id: user.id,
-        name,
-        country,
-      })
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      name,
+      country,
+    })
 
     if (error) {
       alert(error.message)
@@ -55,14 +53,13 @@ function Settings() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#121212] text-white">
+    <div className="min-h-screen bg-[#121212] text-white lg:flex">
       <Sidebar />
 
-      <div className="flex-1">
-        <header className="border-b border-white/10 px-8 py-5">
+      <div className="w-full flex-1 overflow-x-hidden">
+        <header className="border-b border-white/10 px-4 py-5 lg:px-8">
           <h1 className="text-2xl font-bold">
-            Configuración{" "}
-            <span className="text-[#E0B04B]">Personal</span>
+            Configuración <span className="text-[#E0B04B]">Personal</span>
           </h1>
 
           <p className="text-sm text-gray-400">
@@ -70,9 +67,9 @@ function Settings() {
           </p>
         </header>
 
-        <main className="p-8">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-6">
+        <main className="p-4 lg:p-8">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-5 lg:p-6">
               <h2 className="text-xl font-bold">Perfil</h2>
 
               <input
@@ -93,63 +90,43 @@ function Settings() {
                 <option value="Argentina">Argentina</option>
                 <option value="Chile">Chile</option>
                 <option value="España">España</option>
-                <option value="Estados Unidos">
-                  Estados Unidos
-                </option>
+                <option value="Estados Unidos">Estados Unidos</option>
                 <option value="Otro">Otro</option>
               </select>
 
               <button
                 onClick={saveSettings}
-                className="mt-6 rounded-full bg-[#E0B04B] px-6 py-3 font-bold text-black"
+                className="mt-6 w-full rounded-full bg-[#E0B04B] px-6 py-3 font-bold text-black sm:w-auto"
               >
                 Guardar configuración
               </button>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
-              <h2 className="text-xl font-bold">
-                Estado de Smart Capital
-              </h2>
+            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
+              <h2 className="text-xl font-bold">Estado de Smart Capital</h2>
 
               <div className="mt-6 space-y-4 text-sm text-gray-300">
-                <p>
-                  ✅ Movimientos conectados
-                </p>
-
-                <p>
-                  ✅ Presupuesto inteligente activo
-                </p>
-
-                <p>
-                  ✅ Patrimonio conectado
-                </p>
-
-                <p>
-                  ✅ Metas financieras activas
-                </p>
-
-                <p>
-                  ✅ Analytics inteligente funcionando
-                </p>
+                <p>✅ Movimientos conectados</p>
+                <p>✅ Presupuesto inteligente activo</p>
+                <p>✅ Patrimonio conectado</p>
+                <p>✅ Metas financieras activas</p>
+                <p>✅ Analytics inteligente funcionando</p>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-red-500/20 bg-[#1a1a1a] p-6 md:col-span-2">
-              <h2 className="text-xl font-bold text-red-400">
-                Seguridad
-              </h2>
+            <div className="rounded-3xl border border-red-500/20 bg-[#1a1a1a] p-5 lg:col-span-2 lg:p-6">
+              <h2 className="text-xl font-bold text-red-400">Seguridad</h2>
 
               <p className="mt-3 text-sm text-gray-400">
                 La autenticación está protegida mediante Supabase Auth.
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-4">
-                <button className="rounded-full border border-white/10 px-6 py-3 font-bold text-white">
+              <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
+                <button className="w-full rounded-full border border-white/10 px-6 py-3 font-bold text-white sm:w-auto">
                   Cambiar contraseña
                 </button>
 
-                <button className="rounded-full border border-red-400/40 px-6 py-3 font-bold text-red-400">
+                <button className="w-full rounded-full border border-red-400/40 px-6 py-3 font-bold text-red-400 sm:w-auto">
                   Eliminar cuenta
                 </button>
               </div>

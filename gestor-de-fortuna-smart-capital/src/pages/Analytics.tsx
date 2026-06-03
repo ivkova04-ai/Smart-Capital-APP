@@ -104,18 +104,17 @@ function Analytics() {
 
     if (totalGastos === 0) return false
 
-    const real =
-      ((gastosPorCategoria[category.name] || 0) / totalGastos) * 100
+    const real = ((gastosPorCategoria[category.name] || 0) / totalGastos) * 100
 
     return real > ideal && ideal > 0
   })
 
   return (
-    <div className="flex min-h-screen bg-[#121212] text-white">
+    <div className="min-h-screen bg-[#121212] text-white lg:flex">
       <Sidebar />
 
-      <div className="flex-1">
-        <header className="border-b border-white/10 px-8 py-5">
+      <div className="w-full flex-1 overflow-x-hidden">
+        <header className="border-b border-white/10 px-4 py-5 lg:px-8">
           <h1 className="text-2xl font-bold">
             Analytics <span className="text-[#E0B04B]">Financiero</span>
           </h1>
@@ -125,39 +124,43 @@ function Analytics() {
           </p>
         </header>
 
-        <main className="p-8">
-          <div className="grid gap-6 md:grid-cols-4">
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+        <main className="p-4 lg:p-8">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-6">
+            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
               <p className="text-sm text-gray-400">Gasto dominante</p>
-              <h2 className="mt-3 text-2xl font-bold text-[#E0B04B]">
+              <h2 className="mt-3 break-words text-2xl font-bold text-[#E0B04B]">
                 {gastoDominante ? gastoDominante[0] : "Sin datos"}
               </h2>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
               <p className="text-sm text-gray-400">Tasa de ahorro</p>
-              <h2 className={`mt-3 text-2xl font-bold ${tasaAhorro >= 0 ? "text-green-400" : "text-red-400"}`}>
+              <h2
+                className={`mt-3 text-2xl font-bold ${
+                  tasaAhorro >= 0 ? "text-green-400" : "text-red-400"
+                }`}
+              >
                 {tasaAhorro}%
               </h2>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
               <p className="text-sm text-gray-400">Presupuesto excedido</p>
               <h2 className="mt-3 text-2xl font-bold text-red-400">
                 {presupuestoExcedido.length} partidas
               </h2>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
               <p className="text-sm text-gray-400">Fortuna real</p>
-              <h2 className="mt-3 text-2xl font-bold text-[#E0B04B]">
+              <h2 className="mt-3 break-words text-2xl font-bold text-[#E0B04B]">
                 ₡{fortunaReal}
               </h2>
             </div>
           </div>
 
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
               <h3 className="text-xl font-bold">Gastos por partida</h3>
 
               <div className="mt-6 space-y-4">
@@ -170,7 +173,7 @@ function Analytics() {
 
                     return (
                       <div key={name}>
-                        <div className="mb-2 flex justify-between text-sm">
+                        <div className="mb-2 flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
                           <span>{name}</span>
                           <span className="text-[#E0B04B]">{percent}%</span>
                         </div>
@@ -188,39 +191,49 @@ function Analytics() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
               <h3 className="text-xl font-bold">Progreso de metas</h3>
 
-              <h2 className="mt-6 text-5xl font-bold text-[#E0B04B]">
+              <h2 className="mt-6 text-4xl font-bold text-[#E0B04B] lg:text-5xl">
                 {progresoPromedioMetas}%
               </h2>
 
-              <p className="mt-3 text-gray-400">
+              <p className="mt-3 text-sm text-gray-400 lg:text-base">
                 Promedio general de avance de tus metas financieras.
               </p>
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-6">
+          <div className="mt-8 rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-5 lg:p-6">
             <h3 className="text-xl font-bold">Recomendaciones Smart Capital</h3>
 
-            <div className="mt-5 space-y-3 text-gray-300">
+            <div className="mt-5 space-y-3 text-sm text-gray-300 lg:text-base">
               {tasaAhorro < 10 && (
-                <p>• Tu tasa de ahorro está baja. Revisa gastos variables y partidas excedidas.</p>
+                <p>
+                  • Tu tasa de ahorro está baja. Revisa gastos variables y partidas
+                  excedidas.
+                </p>
               )}
 
               {presupuestoExcedido.length > 0 && (
                 <p>
-                  • Tienes {presupuestoExcedido.length} partidas por encima de tu presupuesto ideal.
+                  • Tienes {presupuestoExcedido.length} partidas por encima de tu
+                  presupuesto ideal.
                 </p>
               )}
 
               {progresoPromedioMetas < 30 && goals.length > 0 && (
-                <p>• Tus metas avanzan lentamente. Considera programar aportes más frecuentes.</p>
+                <p>
+                  • Tus metas avanzan lentamente. Considera programar aportes más
+                  frecuentes.
+                </p>
               )}
 
               {fortunaReal < 0 && (
-                <p>• Tu fortuna real está negativa. Prioriza reducir pasivos antes de asumir nuevas deudas.</p>
+                <p>
+                  • Tu fortuna real está negativa. Prioriza reducir pasivos antes de
+                  asumir nuevas deudas.
+                </p>
               )}
 
               {tasaAhorro >= 20 && fortunaReal >= 0 && (
@@ -228,7 +241,9 @@ function Analytics() {
               )}
 
               {movements.length === 0 && (
-                <p>• Registra movimientos para generar recomendaciones más precisas.</p>
+                <p>
+                  • Registra movimientos para generar recomendaciones más precisas.
+                </p>
               )}
             </div>
           </div>

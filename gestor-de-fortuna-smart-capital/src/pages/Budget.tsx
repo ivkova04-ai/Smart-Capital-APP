@@ -24,7 +24,6 @@ function Budget() {
     if (!user) return
 
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`
-
     const nextMonth = month === 12 ? 1 : month + 1
     const nextYear = month === 12 ? year + 1 : year
     const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`
@@ -136,11 +135,11 @@ function Budget() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-[#121212] text-white">
+    <div className="min-h-screen bg-[#121212] text-white lg:flex">
       <Sidebar />
 
-      <div className="flex-1">
-        <header className="flex items-center justify-between border-b border-white/10 px-8 py-5">
+      <div className="w-full flex-1 overflow-x-hidden">
+        <header className="flex flex-col gap-4 border-b border-white/10 px-4 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
             <h1 className="text-2xl font-bold">
               Presupuesto <span className="text-[#E0B04B]">Ideal vs Real</span>
@@ -151,7 +150,7 @@ function Budget() {
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
@@ -168,19 +167,19 @@ function Budget() {
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
               type="number"
-              className="w-28 rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+              className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none sm:w-28"
             />
           </div>
         </header>
 
-        <main className="p-8">
-          <div className="mb-6 rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+        <main className="p-4 lg:p-8">
+          <div className="mb-6 rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
             <p className="text-sm text-gray-400">
               Alineación con tu presupuesto ideal
             </p>
 
             <h2
-              className={`mt-2 text-5xl font-bold ${
+              className={`mt-2 text-4xl font-bold lg:text-5xl ${
                 alignmentScore >= 80
                   ? "text-green-400"
                   : alignmentScore >= 60
@@ -200,7 +199,7 @@ function Budget() {
             </p>
           </div>
 
-          <div className="mb-6 rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+          <div className="mb-6 rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
             <p className="text-sm text-gray-400">Total ideal asignado</p>
 
             <h2
@@ -235,7 +234,7 @@ function Budget() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-6">
+            <div className="rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-5 lg:p-6">
               <h2 className="text-xl font-bold">Presupuesto ideal</h2>
 
               <div className="mt-6 space-y-5">
@@ -251,9 +250,9 @@ function Budget() {
                     return (
                       <div
                         key={category.id}
-                        className="rounded-2xl border border-white/10 bg-[#111111] p-5"
+                        className="rounded-2xl border border-white/10 bg-[#111111] p-4 lg:p-5"
                       >
-                        <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <h3 className="text-lg font-bold">{category.name}</h3>
 
@@ -268,7 +267,7 @@ function Budget() {
                             onBlur={(e) =>
                               saveBudget(category.id, Number(e.target.value))
                             }
-                            className="w-28 rounded-xl border border-white/10 bg-[#1a1a1a] px-4 py-3 outline-none"
+                            className="w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-4 py-3 outline-none sm:w-28"
                           />
                         </div>
 
@@ -285,14 +284,12 @@ function Budget() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6">
+            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
               <h2 className="text-xl font-bold">Presupuesto real</h2>
 
               <div className="mt-6 space-y-5">
                 {categories.length === 0 ? (
-                  <p className="text-gray-400">
-                    No hay partidas para analizar.
-                  </p>
+                  <p className="text-gray-400">No hay partidas para analizar.</p>
                 ) : (
                   categories.map((category) => {
                     const budget = getBudgetForCategory(category.id)
@@ -303,9 +300,9 @@ function Budget() {
                     return (
                       <div
                         key={category.id}
-                        className="rounded-2xl border border-white/10 bg-[#111111] p-5"
+                        className="rounded-2xl border border-white/10 bg-[#111111] p-4 lg:p-5"
                       >
-                        <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <h3 className="text-lg font-bold">{category.name}</h3>
 
@@ -315,7 +312,7 @@ function Budget() {
                           </div>
 
                           <span
-                            className={`rounded-full px-4 py-2 text-sm font-bold ${
+                            className={`w-fit rounded-full px-4 py-2 text-sm font-bold ${
                               difference > 5
                                 ? "bg-red-500/10 text-red-400"
                                 : difference >= -5

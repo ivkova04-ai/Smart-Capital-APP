@@ -155,11 +155,11 @@ function Wealth() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#121212] text-white">
+    <div className="min-h-screen bg-[#121212] text-white lg:flex">
       <Sidebar />
 
-      <div className="flex-1">
-        <header className="border-b border-white/10 px-8 py-5">
+      <div className="w-full flex-1 overflow-x-hidden">
+        <header className="border-b border-white/10 px-4 py-5 lg:px-8">
           <h1 className="text-2xl font-bold">
             Mi <span className="text-[#E0B04B]">Patrimonio</span>
           </h1>
@@ -169,7 +169,7 @@ function Wealth() {
           </p>
         </header>
 
-        <main className="p-8">
+        <main className="p-4 lg:p-8">
           {usedCurrencies.length === 0 ? (
             <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-8 text-center">
               <p className="text-gray-400">
@@ -177,20 +177,20 @@ function Wealth() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 lg:gap-6">
               {usedCurrencies.map((currency) => {
                 const totals = getTotalsByCurrency(currency)
 
                 return (
                   <div
                     key={currency}
-                    className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-6"
+                    className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6"
                   >
                     <p className="text-sm text-gray-400">
                       Fortuna real en {currency}
                     </p>
 
-                    <h2 className="mt-3 text-4xl font-bold text-[#E0B04B]">
+                    <h2 className="mt-3 break-words text-3xl font-bold text-[#E0B04B] lg:text-4xl">
                       {currency}
                       {totals.netWorth}
                     </h2>
@@ -212,8 +212,8 @@ function Wealth() {
             </div>
           )}
 
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
-            <div className="rounded-3xl border border-green-500/20 bg-[#1a1a1a] p-6">
+          <div className="mt-8 grid gap-6 lg:mt-10 lg:grid-cols-2">
+            <div className="rounded-3xl border border-green-500/20 bg-[#1a1a1a] p-5 lg:p-6">
               <h2 className="text-2xl font-bold text-green-400">Activos</h2>
 
               <div className="mt-6 space-y-4">
@@ -258,22 +258,22 @@ function Wealth() {
                   assets.map((asset) => (
                     <div
                       key={asset.id}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#111111] p-4"
+                      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#111111] p-4 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div>
-                        <p className="font-bold">{asset.name}</p>
+                        <p className="break-words font-bold">{asset.name}</p>
                         <p className="text-sm text-gray-500">Activo</p>
                       </div>
 
-                      <div className="flex items-center gap-4">
-                        <p className="text-lg font-bold text-green-400">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <p className="break-words text-lg font-bold text-green-400">
                           {asset.currency}
                           {asset.amount}
                         </p>
 
                         <button
                           onClick={() => deleteAsset(asset.id)}
-                          className="text-red-400"
+                          className="rounded-full border border-red-400/40 px-3 py-1 font-bold text-red-400"
                         >
                           ×
                         </button>
@@ -284,7 +284,7 @@ function Wealth() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-red-500/20 bg-[#1a1a1a] p-6">
+            <div className="rounded-3xl border border-red-500/20 bg-[#1a1a1a] p-5 lg:p-6">
               <h2 className="text-2xl font-bold text-red-400">Pasivos</h2>
 
               <div className="mt-6 space-y-4">
@@ -329,22 +329,22 @@ function Wealth() {
                   liabilities.map((liability) => (
                     <div
                       key={liability.id}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#111111] p-4"
+                      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#111111] p-4 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div>
-                        <p className="font-bold">{liability.name}</p>
+                        <p className="break-words font-bold">{liability.name}</p>
                         <p className="text-sm text-gray-500">Pasivo</p>
                       </div>
 
-                      <div className="flex items-center gap-4">
-                        <p className="text-lg font-bold text-red-400">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <p className="break-words text-lg font-bold text-red-400">
                           {liability.currency}
                           {liability.amount}
                         </p>
 
                         <button
                           onClick={() => deleteLiability(liability.id)}
-                          className="text-red-400"
+                          className="rounded-full border border-red-400/40 px-3 py-1 font-bold text-red-400"
                         >
                           ×
                         </button>
