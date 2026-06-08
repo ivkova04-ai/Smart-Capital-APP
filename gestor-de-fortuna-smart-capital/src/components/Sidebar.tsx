@@ -34,10 +34,10 @@ function Sidebar() {
       <>
         <div>
           <h1 className="text-3xl font-bold text-white">
-            Smart <span className="text-[#E0B04B]">Capital</span>
+            Smart <span className="text-primary">Capital</span>
           </h1>
 
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-textSecondary">
             Finanzas inteligentes
           </p>
         </div>
@@ -51,10 +51,10 @@ function Sidebar() {
                 key={item.path}
                 to={item.path}
                 onClick={() => setOpen(false)}
-                className={`rounded-2xl px-5 py-4 font-semibold transition ${
+                className={`rounded-2xl px-5 py-4 font-semibold transition-all duration-200 ${
                   active
-                    ? "bg-[#E0B04B] text-black"
-                    : "bg-[#161616] text-gray-300 hover:bg-[#222222]"
+                    ? "bg-primary text-white"
+                    : "bg-card text-textSecondary hover:bg-input hover:text-white"
                 }`}
               >
                 {item.name}
@@ -77,9 +77,9 @@ function Sidebar() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-white/10 bg-[#0d0d0d] px-5 py-4 text-white lg:hidden">
+      <div className="flex items-center justify-between border-b border-white/10 bg-background px-5 py-4 text-white lg:hidden">
         <h1 className="text-xl font-bold">
-          Smart <span className="text-[#E0B04B]">Capital</span>
+          Smart <span className="text-primary">Capital</span>
         </h1>
 
         <button
@@ -90,7 +90,7 @@ function Sidebar() {
         </button>
       </div>
 
-      <aside className="hidden min-h-screen w-72 flex-col border-r border-white/10 bg-[#0d0d0d] p-6 lg:flex">
+      <aside className="hidden min-h-screen w-72 flex-col border-r border-white/10 bg-background p-6 lg:flex">
         <MenuContent />
       </aside>
 
@@ -101,7 +101,7 @@ function Sidebar() {
             className="absolute inset-0 bg-black/70"
           />
 
-          <aside className="relative z-10 flex h-full w-80 max-w-[85vw] flex-col border-r border-white/10 bg-[#0d0d0d] p-6">
+          <aside className="relative z-10 flex h-full w-80 max-w-[85vw] flex-col border-r border-white/10 bg-background p-6">
             <button
               onClick={() => setOpen(false)}
               className="mb-6 self-end rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-white"

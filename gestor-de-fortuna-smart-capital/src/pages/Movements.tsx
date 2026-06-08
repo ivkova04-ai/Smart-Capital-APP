@@ -118,21 +118,10 @@ function Movements() {
       query = query.gte("movement_date", startDate).lt("movement_date", endDate)
     }
 
-    if (filterType !== "todos") {
-      query = query.eq("type", filterType)
-    }
-
-    if (filterCurrency !== "todas") {
-      query = query.eq("currency", filterCurrency)
-    }
-
-    if (filterCategory) {
-      query = query.eq("category_id", filterCategory)
-    }
-
-    if (filterSubcategory) {
-      query = query.eq("subcategory_id", filterSubcategory)
-    }
+    if (filterType !== "todos") query = query.eq("type", filterType)
+    if (filterCurrency !== "todas") query = query.eq("currency", filterCurrency)
+    if (filterCategory) query = query.eq("category_id", filterCategory)
+    if (filterSubcategory) query = query.eq("subcategory_id", filterSubcategory)
 
     const { data, error } = await query
 
@@ -274,53 +263,44 @@ function Movements() {
     { value: 12, label: "Diciembre" },
   ]
 
+  const inputClass =
+    "w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
+
+  const labelClass = "mb-2 block text-sm text-textSecondary"
+
   return (
-    <div className="min-h-screen bg-[#121212] text-white lg:flex">
+    <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
       <div className="w-full flex-1 overflow-x-hidden">
         <header className="border-b border-white/10 px-4 py-5 lg:px-8">
           <h1 className="text-2xl font-bold">
-            Registrar <span className="text-[#E0B04B]">Movimiento</span>
+            Registrar <span className="text-primary">Movimiento</span>
           </h1>
 
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-textSecondary">
             Agrega, filtra, edita y elimina ingresos o gastos.
           </p>
         </header>
 
         <main className="p-4 lg:p-8">
-          <div className="w-full rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-4 lg:max-w-4xl lg:p-6">
+          <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 lg:max-w-4xl lg:p-6">
             <h2 className="text-xl font-bold">
               {editingId ? "Editar movimiento" : "Nuevo movimiento"}
             </h2>
 
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm text-gray-400">
-                  Tipo de movimiento
-                </label>
-
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
-                >
+                <label className={labelClass}>Tipo de movimiento</label>
+                <select value={type} onChange={(e) => setType(e.target.value)} className={inputClass}>
                   <option value="gasto">Gasto</option>
                   <option value="ingreso">Ingreso</option>
                 </select>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">
-                  Moneda
-                </label>
-
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
-                >
+                <label className={labelClass}>Moneda</label>
+                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={inputClass}>
                   <option value="₡">Colones ₡</option>
                   <option value="$">Dólares $</option>
                   <option value="€">Euros €</option>
@@ -331,50 +311,42 @@ function Movements() {
 
               {currency === "custom" && (
                 <div>
-                  <label className="mb-2 block text-sm text-gray-400">
-                    Moneda personalizada
-                  </label>
-
+                  <label className={labelClass}>Moneda personalizada</label>
                   <input
                     value={customCurrency}
                     onChange={(e) => setCustomCurrency(e.target.value)}
                     placeholder="Ej: ETH, USDT, COP"
-                    className="w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                    className={inputClass}
                   />
                 </div>
               )}
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">
-                  Monto
-                </label>
-
+                <label className={labelClass}>Monto</label>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Ej: 25000"
                   type="number"
-                  className="w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">
-                  Fecha
-                </label>
+                <label className={labelClass}>Fecha</label>
 
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     type="date"
-                    className="w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                    className={inputClass}
                   />
 
                   <button
                     type="button"
                     onClick={() => setDate(today)}
-                    className="rounded-xl border border-[#E0B04B]/40 px-4 py-3 text-sm font-bold text-[#E0B04B]"
+                    className="rounded-xl border border-primary/40 px-4 py-3 text-sm font-bold text-primary"
                   >
                     Hoy
                   </button>
@@ -382,7 +354,7 @@ function Movements() {
                   <button
                     type="button"
                     onClick={() => setDate(yesterday)}
-                    className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-gray-300"
+                    className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-textSecondary"
                   >
                     Ayer
                   </button>
@@ -390,20 +362,16 @@ function Movements() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">
-                  Partida
-                </label>
-
+                <label className={labelClass}>Partida</label>
                 <select
                   value={selectedCategory}
                   onChange={(e) => {
                     setSelectedCategory(e.target.value)
                     setSelectedSubcategory("")
                   }}
-                  className="w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                  className={inputClass}
                 >
                   <option value="">Selecciona una partida</option>
-
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
@@ -413,18 +381,14 @@ function Movements() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-gray-400">
-                  Subpartida
-                </label>
-
+                <label className={labelClass}>Subpartida</label>
                 <select
                   value={selectedSubcategory}
                   onChange={(e) => setSelectedSubcategory(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                  className={inputClass}
                   disabled={!selectedCategory}
                 >
                   <option value="">Selecciona una subpartida</option>
-
                   {formSubcategories.map((subcategory) => (
                     <option key={subcategory.id} value={subcategory.id}>
                       {subcategory.name}
@@ -435,22 +399,19 @@ function Movements() {
             </div>
 
             <div className="mt-5">
-              <label className="mb-2 block text-sm text-gray-400">
-                Comentario opcional
-              </label>
-
+              <label className={labelClass}>Comentario opcional</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Ej: Compra en supermercado, cena familiar, pago recibido..."
-                className="min-h-28 w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                className="min-h-28 w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
               />
             </div>
 
             <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <button
                 onClick={saveMovement}
-                className="rounded-full bg-[#E0B04B] px-6 py-3 font-bold text-black"
+                className="rounded-full bg-primary px-6 py-3 font-bold text-white"
               >
                 {editingId ? "Actualizar movimiento" : "Guardar movimiento"}
               </button>
@@ -466,17 +427,13 @@ function Movements() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-[#1a1a1a] p-4 lg:p-6">
+          <div className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
             <h2 className="text-xl font-bold">Filtros</h2>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {!showHistorical && (
                 <>
-                  <select
-                    value={filterMonth}
-                    onChange={(e) => setFilterMonth(Number(e.target.value))}
-                    className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
-                  >
+                  <select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className={inputClass}>
                     {months.map((item) => (
                       <option key={item.value} value={item.value}>
                         {item.label}
@@ -488,26 +445,18 @@ function Movements() {
                     value={filterYear}
                     onChange={(e) => setFilterYear(Number(e.target.value))}
                     type="number"
-                    className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                    className={inputClass}
                   />
                 </>
               )}
 
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
-              >
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={inputClass}>
                 <option value="todos">Todos los tipos</option>
                 <option value="gasto">Gastos</option>
                 <option value="ingreso">Ingresos</option>
               </select>
 
-              <select
-                value={filterCurrency}
-                onChange={(e) => setFilterCurrency(e.target.value)}
-                className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
-              >
+              <select value={filterCurrency} onChange={(e) => setFilterCurrency(e.target.value)} className={inputClass}>
                 <option value="todas">Todas las monedas</option>
                 <option value="₡">Colones ₡</option>
                 <option value="$">Dólares $</option>
@@ -521,10 +470,9 @@ function Movements() {
                   setFilterCategory(e.target.value)
                   setFilterSubcategory("")
                 }}
-                className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                className={inputClass}
               >
                 <option value="">Todas las partidas</option>
-
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -536,10 +484,9 @@ function Movements() {
                 <select
                   value={filterSubcategory}
                   onChange={(e) => setFilterSubcategory(e.target.value)}
-                  className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                  className={inputClass}
                 >
                   <option value="">Todas las subpartidas</option>
-
                   {filterSubcategories.map((subcategory) => (
                     <option key={subcategory.id} value={subcategory.id}>
                       {subcategory.name}
@@ -554,8 +501,8 @@ function Movements() {
                 onClick={() => setShowHistorical(!showHistorical)}
                 className={`rounded-full px-6 py-3 font-bold ${
                   showHistorical
-                    ? "bg-[#E0B04B] text-black"
-                    : "border border-[#E0B04B]/40 text-[#E0B04B]"
+                    ? "bg-primary text-white"
+                    : "border border-primary/40 text-primary"
                 }`}
               >
                 {showHistorical ? "Volver a mes/año" : "Histórico total"}
@@ -570,19 +517,19 @@ function Movements() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-[#1a1a1a] p-4 lg:p-6">
+          <div className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
             <h2 className="text-xl font-bold">Movimientos guardados</h2>
 
             <div className="mt-6 space-y-4">
               {movements.length === 0 ? (
-                <p className="text-gray-400">
+                <p className="text-textSecondary">
                   No hay movimientos para los filtros seleccionados.
                 </p>
               ) : (
                 movements.map((movement) => (
                   <div
                     key={movement.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#111111] p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
+                    className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
                   >
                     <div>
                       <p className="font-bold">
@@ -590,12 +537,12 @@ function Movements() {
                         {movement.categories?.name} / {movement.subcategories?.name}
                       </p>
 
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-textSecondary/70">
                         {movement.movement_date}
                       </p>
 
                       {movement.description && (
-                        <p className="mt-1 text-sm text-gray-400">
+                        <p className="mt-1 text-sm text-textSecondary">
                           {movement.description}
                         </p>
                       )}
@@ -605,7 +552,7 @@ function Movements() {
                       <p
                         className={`text-xl font-bold ${
                           movement.type === "ingreso"
-                            ? "text-green-400"
+                            ? "text-secondary"
                             : "text-red-400"
                         }`}
                       >
@@ -615,7 +562,7 @@ function Movements() {
 
                       <button
                         onClick={() => editMovement(movement)}
-                        className="rounded-full border border-[#E0B04B]/40 px-4 py-2 text-sm font-bold text-[#E0B04B]"
+                        className="rounded-full border border-primary/40 px-4 py-2 text-sm font-bold text-primary"
                       >
                         Editar
                       </button>

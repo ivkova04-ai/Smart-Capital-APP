@@ -109,63 +109,65 @@ function Analytics() {
     return real > ideal && ideal > 0
   })
 
+  const cardClass = "rounded-3xl border border-white/10 bg-card p-5 lg:p-6"
+
   return (
-    <div className="min-h-screen bg-[#121212] text-white lg:flex">
+    <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
       <div className="w-full flex-1 overflow-x-hidden">
         <header className="border-b border-white/10 px-4 py-5 lg:px-8">
           <h1 className="text-2xl font-bold">
-            Analytics <span className="text-[#E0B04B]">Financiero</span>
+            Analytics <span className="text-primary">Financiero</span>
           </h1>
 
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-textSecondary">
             Análisis inteligente basado en tus datos reales.
           </p>
         </header>
 
         <main className="p-4 lg:p-8">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-6">
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-              <p className="text-sm text-gray-400">Gasto dominante</p>
-              <h2 className="mt-3 break-words text-2xl font-bold text-[#E0B04B]">
+            <div className={cardClass}>
+              <p className="text-sm text-textSecondary">Gasto dominante</p>
+              <h2 className="mt-3 break-words text-2xl font-bold text-primary">
                 {gastoDominante ? gastoDominante[0] : "Sin datos"}
               </h2>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-              <p className="text-sm text-gray-400">Tasa de ahorro</p>
+            <div className={cardClass}>
+              <p className="text-sm text-textSecondary">Tasa de ahorro</p>
               <h2
                 className={`mt-3 text-2xl font-bold ${
-                  tasaAhorro >= 0 ? "text-green-400" : "text-red-400"
+                  tasaAhorro >= 0 ? "text-secondary" : "text-red-400"
                 }`}
               >
                 {tasaAhorro}%
               </h2>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-              <p className="text-sm text-gray-400">Presupuesto excedido</p>
+            <div className={cardClass}>
+              <p className="text-sm text-textSecondary">Presupuesto excedido</p>
               <h2 className="mt-3 text-2xl font-bold text-red-400">
                 {presupuestoExcedido.length} partidas
               </h2>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-              <p className="text-sm text-gray-400">Fortuna real</p>
-              <h2 className="mt-3 break-words text-2xl font-bold text-[#E0B04B]">
+            <div className={cardClass}>
+              <p className="text-sm text-textSecondary">Fortuna real</p>
+              <h2 className="mt-3 break-words text-2xl font-bold text-primary">
                 ₡{fortunaReal}
               </h2>
             </div>
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
+            <div className={cardClass}>
               <h3 className="text-xl font-bold">Gastos por partida</h3>
 
               <div className="mt-6 space-y-4">
                 {Object.keys(gastosPorCategoria).length === 0 ? (
-                  <p className="text-gray-400">No hay gastos registrados.</p>
+                  <p className="text-textSecondary">No hay gastos registrados.</p>
                 ) : (
                   Object.entries(gastosPorCategoria).map(([name, amount]: any) => {
                     const percent =
@@ -175,12 +177,12 @@ function Analytics() {
                       <div key={name}>
                         <div className="mb-2 flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
                           <span>{name}</span>
-                          <span className="text-[#E0B04B]">{percent}%</span>
+                          <span className="text-primary">{percent}%</span>
                         </div>
 
-                        <div className="h-3 rounded-full bg-[#111111]">
+                        <div className="h-3 rounded-full bg-input">
                           <div
-                            className="h-3 rounded-full bg-[#E0B04B]"
+                            className="h-3 rounded-full bg-primary"
                             style={{ width: `${percent}%` }}
                           />
                         </div>
@@ -191,23 +193,23 @@ function Analytics() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
+            <div className={cardClass}>
               <h3 className="text-xl font-bold">Progreso de metas</h3>
 
-              <h2 className="mt-6 text-4xl font-bold text-[#E0B04B] lg:text-5xl">
+              <h2 className="mt-6 text-4xl font-bold text-primary lg:text-5xl">
                 {progresoPromedioMetas}%
               </h2>
 
-              <p className="mt-3 text-sm text-gray-400 lg:text-base">
+              <p className="mt-3 text-sm text-textSecondary lg:text-base">
                 Promedio general de avance de tus metas financieras.
               </p>
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-5 lg:p-6">
+          <div className="mt-8 rounded-3xl border border-primary/20 bg-card p-5 lg:p-6">
             <h3 className="text-xl font-bold">Recomendaciones Smart Capital</h3>
 
-            <div className="mt-5 space-y-3 text-sm text-gray-300 lg:text-base">
+            <div className="mt-5 space-y-3 text-sm text-textSecondary lg:text-base">
               {tasaAhorro < 10 && (
                 <p>
                   • Tu tasa de ahorro está baja. Revisa gastos variables y partidas

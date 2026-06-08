@@ -116,18 +116,23 @@ function Dashboard() {
     { value: 12, label: "Diciembre" },
   ]
 
+  const inputClass =
+    "rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
+
+  const cardClass = "rounded-3xl border border-white/10 bg-card p-5 lg:p-6"
+
   return (
-    <div className="min-h-screen bg-[#121212] text-white lg:flex">
+    <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
       <div className="w-full flex-1 overflow-x-hidden">
         <header className="flex flex-col gap-4 border-b border-white/10 px-4 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
             <h1 className="text-2xl font-bold">
-              Dashboard <span className="text-[#E0B04B]">Financiero</span>
+              Dashboard <span className="text-primary">Financiero</span>
             </h1>
 
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-textSecondary">
               {showHistorical
                 ? "Resumen histórico total de tus finanzas."
                 : "Resumen mensual de tus finanzas."}
@@ -140,7 +145,7 @@ function Dashboard() {
                 <select
                   value={month}
                   onChange={(e) => setMonth(Number(e.target.value))}
-                  className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                  className={inputClass}
                 >
                   {months.map((item) => (
                     <option key={item.value} value={item.value}>
@@ -153,7 +158,7 @@ function Dashboard() {
                   value={year}
                   onChange={(e) => setYear(Number(e.target.value))}
                   type="number"
-                  className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none sm:w-28"
+                  className={`${inputClass} sm:w-28`}
                 />
               </>
             )}
@@ -162,8 +167,8 @@ function Dashboard() {
               onClick={() => setShowHistorical(!showHistorical)}
               className={`rounded-xl px-5 py-3 font-bold ${
                 showHistorical
-                  ? "bg-[#E0B04B] text-black"
-                  : "border border-[#E0B04B]/40 text-[#E0B04B]"
+                  ? "bg-primary text-white"
+                  : "border border-primary/40 text-primary"
               }`}
             >
               {showHistorical ? "Volver a mensual" : "Histórico total"}
@@ -172,19 +177,19 @@ function Dashboard() {
         </header>
 
         <main className="p-4 lg:p-8">
-          <div className="mb-8 rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-5 lg:p-6">
+          <div className="mb-8 rounded-3xl border border-primary/20 bg-card p-5 lg:p-6">
             <h2 className="text-2xl font-bold lg:text-3xl">
-              Hola <span className="text-[#E0B04B]">{profileName || "👋"}</span>
+              Hola <span className="text-primary">{profileName || "👋"}</span>
             </h2>
 
-            <p className="mt-3 text-sm text-gray-400 lg:text-base">
+            <p className="mt-3 text-sm text-textSecondary lg:text-base">
               Estos son los datos más relevantes de tu situación financiera.
             </p>
           </div>
 
           {usedCurrencies.length === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-8 text-center lg:p-10">
-              <p className="text-gray-400">
+            <div className="rounded-3xl border border-white/10 bg-card p-8 text-center lg:p-10">
+              <p className="text-textSecondary">
                 No hay movimientos registrados para este periodo.
               </p>
             </div>
@@ -200,22 +205,22 @@ function Dashboard() {
                     </h2>
 
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-                      <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-                        <p className="text-sm text-gray-400">Balance</p>
-                        <h2 className="mt-3 break-words text-3xl font-bold text-[#E0B04B] lg:text-4xl">
+                      <div className={cardClass}>
+                        <p className="text-sm text-textSecondary">Balance</p>
+                        <h2 className="mt-3 break-words text-3xl font-bold text-primary lg:text-4xl">
                           {currency}{totals.balance}
                         </h2>
                       </div>
 
-                      <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-                        <p className="text-sm text-gray-400">Ingresos</p>
-                        <h2 className="mt-3 break-words text-3xl font-bold text-green-400 lg:text-4xl">
+                      <div className={cardClass}>
+                        <p className="text-sm text-textSecondary">Ingresos</p>
+                        <h2 className="mt-3 break-words text-3xl font-bold text-secondary lg:text-4xl">
                           {currency}{totals.ingresos}
                         </h2>
                       </div>
 
-                      <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-                        <p className="text-sm text-gray-400">Gastos</p>
+                      <div className={cardClass}>
+                        <p className="text-sm text-textSecondary">Gastos</p>
                         <h2 className="mt-3 break-words text-3xl font-bold text-red-400 lg:text-4xl">
                           {currency}{totals.gastos}
                         </h2>
@@ -228,12 +233,12 @@ function Dashboard() {
           )}
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
+            <div className={cardClass}>
               <h3 className="text-xl font-bold">Gastos por partida</h3>
 
               <div className="mt-6 space-y-4">
                 {Object.keys(expensesByCategory).length === 0 ? (
-                  <p className="text-gray-400">
+                  <p className="text-textSecondary">
                     No hay gastos registrados en este periodo.
                   </p>
                 ) : (
@@ -241,14 +246,14 @@ function Dashboard() {
                     <div key={`${item.currency}-${item.category}`}>
                       <div className="mb-2 flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
                         <span>{item.currency} {item.category}</span>
-                        <span className="text-[#E0B04B]">
+                        <span className="text-primary">
                           {item.currency}{item.amount}
                         </span>
                       </div>
 
-                      <div className="h-3 rounded-full bg-[#111111]">
+                      <div className="h-3 rounded-full bg-input">
                         <div
-                          className="h-3 rounded-full bg-[#E0B04B]"
+                          className="h-3 rounded-full bg-primary"
                           style={{
                             width: `${(item.amount / maxExpenseByCategory) * 100}%`,
                           }}
@@ -260,12 +265,12 @@ function Dashboard() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
+            <div className={cardClass}>
               <h3 className="text-xl font-bold">Ingresos vs gastos</h3>
 
               <div className="mt-6 space-y-5">
                 {usedCurrencies.length === 0 ? (
-                  <p className="text-gray-400">No hay datos para comparar.</p>
+                  <p className="text-textSecondary">No hay datos para comparar.</p>
                 ) : (
                   usedCurrencies.map((currency) => {
                     const totals = getTotalsByCurrency(currency)
@@ -288,8 +293,8 @@ function Dashboard() {
                         <p className="mb-3 font-bold">{currency}</p>
 
                         <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-2xl bg-[#111111] p-4">
-                            <p className="text-sm text-gray-400">
+                          <div className="rounded-2xl bg-input p-4">
+                            <p className="text-sm text-textSecondary">
                               Gasto sobre ingreso
                             </p>
                             <p className="mt-1 text-2xl font-bold text-red-400">
@@ -297,14 +302,14 @@ function Dashboard() {
                             </p>
                           </div>
 
-                          <div className="rounded-2xl bg-[#111111] p-4">
-                            <p className="text-sm text-gray-400">
+                          <div className="rounded-2xl bg-input p-4">
+                            <p className="text-sm text-textSecondary">
                               Porcentaje libre
                             </p>
                             <p
                               className={`mt-1 text-2xl font-bold ${
                                 ahorroPorcentaje >= 0
-                                  ? "text-green-400"
+                                  ? "text-secondary"
                                   : "text-red-400"
                               }`}
                             >
@@ -317,14 +322,14 @@ function Dashboard() {
                           <div>
                             <div className="mb-1 flex justify-between text-sm">
                               <span>Ingresos</span>
-                              <span className="text-green-400">
+                              <span className="text-secondary">
                                 {currency}{totals.ingresos}
                               </span>
                             </div>
 
-                            <div className="h-3 rounded-full bg-[#111111]">
+                            <div className="h-3 rounded-full bg-input">
                               <div
-                                className="h-3 rounded-full bg-green-400"
+                                className="h-3 rounded-full bg-secondary"
                                 style={{ width: `${(totals.ingresos / max) * 100}%` }}
                               />
                             </div>
@@ -338,7 +343,7 @@ function Dashboard() {
                               </span>
                             </div>
 
-                            <div className="h-3 rounded-full bg-[#111111]">
+                            <div className="h-3 rounded-full bg-input">
                               <div
                                 className="h-3 rounded-full bg-red-400"
                                 style={{ width: `${(totals.gastos / max) * 100}%` }}
@@ -354,17 +359,17 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
+          <div className="mt-8 rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
             <h3 className="text-xl font-bold">Últimos 10 movimientos</h3>
 
             <div className="mt-6 space-y-4">
               {latestMovements.length === 0 ? (
-                <p className="text-gray-400">No hay movimientos para mostrar.</p>
+                <p className="text-textSecondary">No hay movimientos para mostrar.</p>
               ) : (
                 latestMovements.map((movement) => (
                   <div
                     key={movement.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#111111] p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
+                    className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
                   >
                     <div>
                       <p className="font-bold">
@@ -372,12 +377,12 @@ function Dashboard() {
                         {movement.categories?.name} / {movement.subcategories?.name}
                       </p>
 
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-textSecondary/70">
                         {movement.movement_date}
                       </p>
 
                       {movement.description && (
-                        <p className="mt-1 text-sm text-gray-400">
+                        <p className="mt-1 text-sm text-textSecondary">
                           {movement.description}
                         </p>
                       )}
@@ -386,7 +391,7 @@ function Dashboard() {
                     <p
                       className={`text-xl font-bold ${
                         movement.type === "ingreso"
-                          ? "text-green-400"
+                          ? "text-secondary"
                           : "text-red-400"
                       }`}
                     >

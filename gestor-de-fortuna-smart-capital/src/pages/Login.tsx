@@ -46,13 +46,13 @@ function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1a1a] text-white flex items-center justify-center px-6">
-      <div className="w-full max-w-md rounded-3xl border border-[#E0B04B]/20 bg-black/30 p-8">
+    <div className="flex min-h-screen items-center justify-center bg-background px-6 text-white">
+      <div className="w-full max-w-md rounded-3xl border border-primary/20 bg-card p-8">
         <h1 className="text-3xl font-bold">
-          Bienvenido a Smart <span className="text-[#E0B04B]">Capital</span>
+          Bienvenido a Smart <span className="text-primary">Capital</span>
         </h1>
 
-        <p className="mt-3 text-gray-400">
+        <p className="mt-3 text-textSecondary">
           Inicia sesión para guardar y proteger tus datos financieros.
         </p>
 
@@ -63,35 +63,35 @@ function Login() {
           Continuar con Google
         </button>
 
-        <div className="my-6 text-center text-sm text-gray-500">
+        <div className="my-6 text-center text-sm text-textSecondary/70">
           o ingresa con correo
         </div>
 
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 text-white outline-none"
+          className="w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
           placeholder="Correo electrónico"
         />
 
         <input
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-4 w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 text-white outline-none"
+          className="mt-4 w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
           placeholder="Contraseña"
           type="password"
         />
 
         <button
           onClick={loginWithEmail}
-          className="mt-6 w-full rounded-full bg-[#E0B04B] px-5 py-3 font-bold text-black"
+          className="mt-6 w-full rounded-full bg-primary px-5 py-3 font-bold text-white"
         >
           Iniciar sesión
         </button>
 
         <button
           onClick={registerWithEmail}
-          className="mt-4 w-full rounded-full border border-[#E0B04B]/40 px-5 py-3 font-bold text-[#E0B04B]"
+          className="mt-4 w-full rounded-full border border-primary/40 px-5 py-3 font-bold text-primary"
         >
           Crear cuenta gratis
         </button>

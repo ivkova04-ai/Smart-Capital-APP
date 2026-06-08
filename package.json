@@ -6,8 +6,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
-    "@tailwindcss/vite": "^4.3.0",
-    "tailwindcss": "^4.3.0",
     "date-fns": "^4.1.0",
     "react": "^19.0.0",
     "react-datepicker": "^9.1.0",

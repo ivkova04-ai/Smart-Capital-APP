@@ -52,37 +52,40 @@ function Settings() {
     alert("Configuración guardada correctamente.")
   }
 
+  const inputClass =
+    "mt-4 w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
+
   return (
-    <div className="min-h-screen bg-[#121212] text-white lg:flex">
+    <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
       <div className="w-full flex-1 overflow-x-hidden">
         <header className="border-b border-white/10 px-4 py-5 lg:px-8">
           <h1 className="text-2xl font-bold">
-            Configuración <span className="text-[#E0B04B]">Personal</span>
+            Configuración <span className="text-primary">Personal</span>
           </h1>
 
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-textSecondary">
             Administra tu perfil y preferencias.
           </p>
         </header>
 
         <main className="p-4 lg:p-8">
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-5 lg:p-6">
+            <div className="rounded-3xl border border-primary/20 bg-card p-5 lg:p-6">
               <h2 className="text-xl font-bold">Perfil</h2>
 
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Tu nombre"
-                className="mt-4 w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                className={inputClass}
               />
 
               <select
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="mt-4 w-full rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+                className={inputClass}
               >
                 <option value="Costa Rica">Costa Rica</option>
                 <option value="México">México</option>
@@ -96,16 +99,16 @@ function Settings() {
 
               <button
                 onClick={saveSettings}
-                className="mt-6 w-full rounded-full bg-[#E0B04B] px-6 py-3 font-bold text-black sm:w-auto"
+                className="mt-6 w-full rounded-full bg-primary px-6 py-3 font-bold text-white sm:w-auto"
               >
                 Guardar configuración
               </button>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
+            <div className="rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
               <h2 className="text-xl font-bold">Estado de Smart Capital</h2>
 
-              <div className="mt-6 space-y-4 text-sm text-gray-300">
+              <div className="mt-6 space-y-4 text-sm text-textSecondary">
                 <p>✅ Movimientos conectados</p>
                 <p>✅ Presupuesto inteligente activo</p>
                 <p>✅ Patrimonio conectado</p>
@@ -114,10 +117,10 @@ function Settings() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-red-500/20 bg-[#1a1a1a] p-5 lg:col-span-2 lg:p-6">
+            <div className="rounded-3xl border border-red-500/20 bg-card p-5 lg:col-span-2 lg:p-6">
               <h2 className="text-xl font-bold text-red-400">Seguridad</h2>
 
-              <p className="mt-3 text-sm text-gray-400">
+              <p className="mt-3 text-sm text-textSecondary">
                 La autenticación está protegida mediante Supabase Auth.
               </p>
 

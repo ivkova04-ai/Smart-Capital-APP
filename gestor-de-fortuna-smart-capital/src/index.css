@@ -1,3 +1,15 @@
+ :root {
+  --primary: #6967fb;
+  --secondary: #c8f904;
+
+  --background: #0e1a1f;
+  --card: #152329;
+  --input: #1a2b32;
+
+  --text: #ffffff;
+  --text-secondary: #a7b4ba;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

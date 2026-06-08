@@ -134,18 +134,23 @@ function Budget() {
     { value: 12, label: "Diciembre" },
   ]
 
+  const inputClass =
+    "rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
+
+  const cardClass = "rounded-3xl border border-white/10 bg-card p-5 lg:p-6"
+
   return (
-    <div className="min-h-screen bg-[#121212] text-white lg:flex">
+    <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
       <div className="w-full flex-1 overflow-x-hidden">
         <header className="flex flex-col gap-4 border-b border-white/10 px-4 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
             <h1 className="text-2xl font-bold">
-              Presupuesto <span className="text-[#E0B04B]">Ideal vs Real</span>
+              Presupuesto <span className="text-primary">Ideal vs Real</span>
             </h1>
 
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-textSecondary">
               Compara tu presupuesto ideal contra tus gastos reales.
             </p>
           </div>
@@ -154,7 +159,7 @@ function Budget() {
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none"
+              className={inputClass}
             >
               {months.map((item) => (
                 <option key={item.value} value={item.value}>
@@ -167,30 +172,30 @@ function Budget() {
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
               type="number"
-              className="rounded-xl border border-white/10 bg-[#111111] px-4 py-3 outline-none sm:w-28"
+              className={`${inputClass} sm:w-28`}
             />
           </div>
         </header>
 
         <main className="p-4 lg:p-8">
-          <div className="mb-6 rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-            <p className="text-sm text-gray-400">
+          <div className="mb-6 rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
+            <p className="text-sm text-textSecondary">
               Alineación con tu presupuesto ideal
             </p>
 
             <h2
               className={`mt-2 text-4xl font-bold lg:text-5xl ${
                 alignmentScore >= 80
-                  ? "text-green-400"
+                  ? "text-secondary"
                   : alignmentScore >= 60
-                  ? "text-[#E0B04B]"
+                  ? "text-primary"
                   : "text-red-400"
               }`}
             >
               {alignmentScore}%
             </h2>
 
-            <p className="mt-3 text-sm text-gray-400">
+            <p className="mt-3 text-sm text-textSecondary">
               {alignmentScore >= 80
                 ? "Excelente. Tus gastos están bastante alineados con tu presupuesto ideal."
                 : alignmentScore >= 60
@@ -199,29 +204,29 @@ function Budget() {
             </p>
           </div>
 
-          <div className="mb-6 rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
-            <p className="text-sm text-gray-400">Total ideal asignado</p>
+          <div className="mb-6 rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
+            <p className="text-sm text-textSecondary">Total ideal asignado</p>
 
             <h2
               className={`mt-2 text-4xl font-bold ${
                 totalIdeal === 100
-                  ? "text-green-400"
+                  ? "text-secondary"
                   : totalIdeal > 100
                   ? "text-red-400"
-                  : "text-[#E0B04B]"
+                  : "text-primary"
               }`}
             >
               {totalIdeal}%
             </h2>
 
             {totalIdeal < 100 && (
-              <p className="mt-3 text-sm text-yellow-400">
+              <p className="mt-3 text-sm text-primary">
                 Aún te falta asignar {100 - totalIdeal}% de tu presupuesto ideal.
               </p>
             )}
 
             {totalIdeal === 100 && (
-              <p className="mt-3 text-sm text-green-400">
+              <p className="mt-3 text-sm text-secondary">
                 Excelente. Tu presupuesto ideal está balanceado en 100%.
               </p>
             )}
@@ -234,12 +239,12 @@ function Budget() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-[#E0B04B]/20 bg-[#1a1a1a] p-5 lg:p-6">
+            <div className="rounded-3xl border border-primary/20 bg-card p-5 lg:p-6">
               <h2 className="text-xl font-bold">Presupuesto ideal</h2>
 
               <div className="mt-6 space-y-5">
                 {categories.length === 0 ? (
-                  <p className="text-gray-400">
+                  <p className="text-textSecondary">
                     Primero debes crear partidas en Categorías.
                   </p>
                 ) : (
@@ -250,13 +255,13 @@ function Budget() {
                     return (
                       <div
                         key={category.id}
-                        className="rounded-2xl border border-white/10 bg-[#111111] p-4 lg:p-5"
+                        className="rounded-2xl border border-white/10 bg-input p-4 lg:p-5"
                       >
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <h3 className="text-lg font-bold">{category.name}</h3>
 
-                            <p className="mt-1 text-sm text-gray-400">
+                            <p className="mt-1 text-sm text-textSecondary">
                               Ideal: {percentage}%
                             </p>
                           </div>
@@ -267,13 +272,13 @@ function Budget() {
                             onBlur={(e) =>
                               saveBudget(category.id, Number(e.target.value))
                             }
-                            className="w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-4 py-3 outline-none sm:w-28"
+                            className="w-full rounded-xl border border-white/10 bg-card px-4 py-3 text-white outline-none focus:border-primary/60 sm:w-28"
                           />
                         </div>
 
-                        <div className="mt-4 h-3 rounded-full bg-[#1a1a1a]">
+                        <div className="mt-4 h-3 rounded-full bg-card">
                           <div
-                            className="h-3 rounded-full bg-[#E0B04B]"
+                            className="h-3 rounded-full bg-primary"
                             style={{ width: `${Math.min(percentage, 100)}%` }}
                           />
                         </div>
@@ -284,12 +289,12 @@ function Budget() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#1a1a1a] p-5 lg:p-6">
+            <div className={cardClass}>
               <h2 className="text-xl font-bold">Presupuesto real</h2>
 
               <div className="mt-6 space-y-5">
                 {categories.length === 0 ? (
-                  <p className="text-gray-400">No hay partidas para analizar.</p>
+                  <p className="text-textSecondary">No hay partidas para analizar.</p>
                 ) : (
                   categories.map((category) => {
                     const budget = getBudgetForCategory(category.id)
@@ -300,13 +305,13 @@ function Budget() {
                     return (
                       <div
                         key={category.id}
-                        className="rounded-2xl border border-white/10 bg-[#111111] p-4 lg:p-5"
+                        className="rounded-2xl border border-white/10 bg-input p-4 lg:p-5"
                       >
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <h3 className="text-lg font-bold">{category.name}</h3>
 
-                            <p className="mt-1 text-sm text-gray-400">
+                            <p className="mt-1 text-sm text-textSecondary">
                               Ideal: {ideal}% · Real: {real}%
                             </p>
                           </div>
@@ -316,22 +321,22 @@ function Budget() {
                               difference > 5
                                 ? "bg-red-500/10 text-red-400"
                                 : difference >= -5
-                                ? "bg-green-500/10 text-green-400"
-                                : "bg-yellow-500/10 text-yellow-400"
+                                ? "bg-secondary/10 text-secondary"
+                                : "bg-primary/10 text-primary"
                             }`}
                           >
                             {difference > 0 ? `+${difference}%` : `${difference}%`}
                           </span>
                         </div>
 
-                        <div className="mt-4 h-3 rounded-full bg-[#1a1a1a]">
+                        <div className="mt-4 h-3 rounded-full bg-card">
                           <div
                             className={`h-3 rounded-full ${
                               difference > 5
                                 ? "bg-red-400"
                                 : difference >= -5
-                                ? "bg-green-400"
-                                : "bg-yellow-400"
+                                ? "bg-secondary"
+                                : "bg-primary"
                             }`}
                             style={{ width: `${Math.min(real, 100)}%` }}
                           />
