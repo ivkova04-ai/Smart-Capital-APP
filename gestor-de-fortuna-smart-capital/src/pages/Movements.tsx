@@ -11,6 +11,8 @@ function Movements() {
 
   const currentDate = new Date()
 
+  const [movementMode, setMovementMode] = useState<"normal" | "crypto">("normal")
+
   const [filterMonth, setFilterMonth] = useState(currentDate.getMonth() + 1)
   const [filterYear, setFilterYear] = useState(currentDate.getFullYear())
   const [showHistorical, setShowHistorical] = useState(false)
@@ -27,6 +29,15 @@ function Movements() {
   const [date, setDate] = useState(today)
   const [description, setDescription] = useState("")
 
+  const [cryptoEditingId, setCryptoEditingId] = useState("")
+  const [cryptoType, setCryptoType] = useState("egreso")
+  const [cryptoCurrency, setCryptoCurrency] = useState("BTC")
+  const [customCryptoCurrency, setCustomCryptoCurrency] = useState("")
+  const [cryptoAmount, setCryptoAmount] = useState("")
+  const [cryptoDate, setCryptoDate] = useState(today)
+  const [cryptoDescription, setCryptoDescription] = useState("")
+  const [cryptoInvestments, setCryptoInvestments] = useState<any[]>([])
+
   const [categories, setCategories] = useState<any[]>([])
   const [subcategories, setSubcategories] = useState<any[]>([])
   const [movements, setMovements] = useState<any[]>([])
@@ -37,10 +48,12 @@ function Movements() {
   useEffect(() => {
     fetchCategories()
     fetchSubcategories()
+    fetchCryptoInvestments()
   }, [])
 
   useEffect(() => {
     fetchMovements()
+    fetchCryptoInvestments()
   }, [
     filterMonth,
     filterYear,
@@ -52,10 +65,7 @@ function Movements() {
   ])
 
   async function fetchCategories() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const { data, error } = await supabase
@@ -73,10 +83,7 @@ function Movements() {
   }
 
   async function fetchSubcategories() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const { data, error } = await supabase
@@ -93,10 +100,7 @@ function Movements() {
   }
 
   async function fetchMovements() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     let query = supabase
@@ -133,6 +137,35 @@ function Movements() {
     setMovements(data || [])
   }
 
+  async function fetchCryptoInvestments() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    let query = supabase
+      .from("crypto_investments")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("movement_date", { ascending: false })
+
+    if (!showHistorical) {
+      const startDate = `${filterYear}-${String(filterMonth).padStart(2, "0")}-01`
+      const nextMonth = filterMonth === 12 ? 1 : filterMonth + 1
+      const nextYear = filterMonth === 12 ? filterYear + 1 : filterYear
+      const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`
+
+      query = query.gte("movement_date", startDate).lt("movement_date", endDate)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    setCryptoInvestments(data || [])
+  }
+
   const formSubcategories = subcategories.filter(
     (sub) => sub.category_id === selectedCategory
   )
@@ -142,6 +175,8 @@ function Movements() {
   )
 
   const finalCurrency = currency === "custom" ? customCurrency : currency
+  const finalCryptoCurrency =
+    cryptoCurrency === "custom" ? customCryptoCurrency : cryptoCurrency
 
   async function saveMovement() {
     if (!amount || !selectedCategory || !selectedSubcategory || !date) {
@@ -154,10 +189,7 @@ function Movements() {
       return
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const movementData = {
@@ -182,15 +214,50 @@ function Movements() {
 
     resetForm()
     fetchMovements()
+    alert(editingId ? "Movimiento actualizado correctamente." : "Movimiento guardado correctamente.")
+  }
 
+  async function saveCryptoInvestment() {
+    if (!cryptoAmount || !cryptoDate || !finalCryptoCurrency) {
+      alert("Completa moneda, monto y fecha.")
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const cryptoData = {
+      user_id: user.id,
+      type: cryptoType,
+      currency: finalCryptoCurrency,
+      amount: Number(cryptoAmount),
+      movement_date: cryptoDate,
+      description: cryptoDescription || null,
+    }
+
+    const { error } = cryptoEditingId
+      ? await supabase
+          .from("crypto_investments")
+          .update(cryptoData)
+          .eq("id", cryptoEditingId)
+      : await supabase.from("crypto_investments").insert(cryptoData)
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    resetCryptoForm()
+    fetchCryptoInvestments()
     alert(
-      editingId
-        ? "Movimiento actualizado correctamente."
-        : "Movimiento guardado correctamente."
+      cryptoEditingId
+        ? "Inversión cripto actualizada correctamente."
+        : "Inversión cripto guardada correctamente."
     )
   }
 
   function editMovement(movement: any) {
+    setMovementMode("normal")
     setEditingId(movement.id)
     setType(movement.type)
     setAmount(String(movement.amount))
@@ -212,6 +279,27 @@ function Movements() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
+  function editCryptoInvestment(item: any) {
+    setMovementMode("crypto")
+    setCryptoEditingId(item.id)
+    setCryptoType(item.type)
+    setCryptoAmount(String(item.amount))
+    setCryptoDate(item.movement_date)
+    setCryptoDescription(item.description || "")
+
+    const defaultCryptoCurrencies = ["BTC", "ETH", "USDT", "SOL"]
+
+    if (defaultCryptoCurrencies.includes(item.currency)) {
+      setCryptoCurrency(item.currency)
+      setCustomCryptoCurrency("")
+    } else {
+      setCryptoCurrency("custom")
+      setCustomCryptoCurrency(item.currency)
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
   async function deleteMovement(id: string) {
     const confirmDelete = confirm("¿Seguro que quieres eliminar este movimiento?")
     if (!confirmDelete) return
@@ -226,6 +314,23 @@ function Movements() {
     fetchMovements()
   }
 
+  async function deleteCryptoInvestment(id: string) {
+    const confirmDelete = confirm("¿Seguro que quieres eliminar esta inversión cripto?")
+    if (!confirmDelete) return
+
+    const { error } = await supabase
+      .from("crypto_investments")
+      .delete()
+      .eq("id", id)
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    fetchCryptoInvestments()
+  }
+
   function resetForm() {
     setEditingId("")
     setAmount("")
@@ -236,6 +341,16 @@ function Movements() {
     setCustomCurrency("")
     setSelectedCategory("")
     setSelectedSubcategory("")
+  }
+
+  function resetCryptoForm() {
+    setCryptoEditingId("")
+    setCryptoType("egreso")
+    setCryptoCurrency("BTC")
+    setCustomCryptoCurrency("")
+    setCryptoAmount("")
+    setCryptoDate(today)
+    setCryptoDescription("")
   }
 
   function clearFilters() {
@@ -267,8 +382,7 @@ function Movements() {
     "w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
 
   const labelClass = "mb-2 block text-sm text-textSecondary"
-
-  return (
+    return (
     <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
@@ -279,153 +393,315 @@ function Movements() {
           </h1>
 
           <p className="text-sm text-textSecondary">
-            Agrega, filtra, edita y elimina ingresos o gastos.
+            Agrega movimientos normales o inversiones cripto.
           </p>
         </header>
 
         <main className="p-4 lg:p-8">
-          <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 lg:max-w-4xl lg:p-6">
-            <h2 className="text-xl font-bold">
-              {editingId ? "Editar movimiento" : "Nuevo movimiento"}
-            </h2>
+          <div className="mb-6 flex w-full max-w-xl rounded-full bg-primary p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMovementMode("normal")
+                resetCryptoForm()
+              }}
+              className={`flex-1 rounded-full px-4 py-3 text-sm font-bold transition-all ${
+                movementMode === "normal"
+                  ? "bg-white text-primary shadow-lg"
+                  : "text-white"
+              }`}
+            >
+              Movimientos
+            </button>
 
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Tipo de movimiento</label>
-                <select value={type} onChange={(e) => setType(e.target.value)} className={inputClass}>
-                  <option value="gasto">Gasto</option>
-                  <option value="ingreso">Ingreso</option>
-                </select>
-              </div>
+            <button
+              type="button"
+              onClick={() => {
+                setMovementMode("crypto")
+                resetForm()
+              }}
+              className={`flex-1 rounded-full px-4 py-3 text-sm font-bold transition-all ${
+                movementMode === "crypto"
+                  ? "bg-white text-primary shadow-lg"
+                  : "text-white"
+              }`}
+            >
+              Inversiones cripto
+            </button>
+          </div>
 
-              <div>
-                <label className={labelClass}>Moneda</label>
-                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={inputClass}>
-                  <option value="₡">Colones ₡</option>
-                  <option value="$">Dólares $</option>
-                  <option value="€">Euros €</option>
-                  <option value="₿">Bitcoin ₿</option>
-                  <option value="custom">Otra</option>
-                </select>
-              </div>
+          {movementMode === "normal" ? (
+            <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 lg:max-w-4xl lg:p-6">
+              <h2 className="text-xl font-bold">
+                {editingId ? "Editar movimiento" : "Nuevo movimiento"}
+              </h2>
 
-              {currency === "custom" && (
+              <div className="mt-6 grid gap-5 md:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Moneda personalizada</label>
+                  <label className={labelClass}>Tipo de movimiento</label>
+                  <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="gasto">Gasto</option>
+                    <option value="ingreso">Ingreso</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Moneda</label>
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="₡">Colones ₡</option>
+                    <option value="$">Dólares $</option>
+                    <option value="€">Euros €</option>
+                    <option value="₿">Bitcoin ₿</option>
+                    <option value="custom">Otra</option>
+                  </select>
+                </div>
+
+                {currency === "custom" && (
+                  <div>
+                    <label className={labelClass}>Moneda personalizada</label>
+                    <input
+                      value={customCurrency}
+                      onChange={(e) => setCustomCurrency(e.target.value)}
+                      placeholder="Ej: ETH, USDT, COP"
+                      className={inputClass}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className={labelClass}>Monto</label>
                   <input
-                    value={customCurrency}
-                    onChange={(e) => setCustomCurrency(e.target.value)}
-                    placeholder="Ej: ETH, USDT, COP"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="Ej: 25000"
+                    type="number"
                     className={inputClass}
                   />
                 </div>
-              )}
 
-              <div>
-                <label className={labelClass}>Monto</label>
-                <input
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Ej: 25000"
-                  type="number"
-                  className={inputClass}
+                <div>
+                  <label className={labelClass}>Fecha</label>
+
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      type="date"
+                      className={inputClass}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setDate(today)}
+                      className="rounded-xl border border-primary/40 px-4 py-3 text-sm font-bold text-primary"
+                    >
+                      Hoy
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDate(yesterday)}
+                      className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-textSecondary"
+                    >
+                      Ayer
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Partida</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value)
+                      setSelectedSubcategory("")
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">Selecciona una partida</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Subpartida</label>
+                  <select
+                    value={selectedSubcategory}
+                    onChange={(e) => setSelectedSubcategory(e.target.value)}
+                    className={inputClass}
+                    disabled={!selectedCategory}
+                  >
+                    <option value="">Selecciona una subpartida</option>
+                    {formSubcategories.map((subcategory) => (
+                      <option key={subcategory.id} value={subcategory.id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <label className={labelClass}>Comentario opcional</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Ej: Compra en supermercado, cena familiar, pago recibido..."
+                  className="min-h-28 w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
                 />
               </div>
 
-              <div>
-                <label className={labelClass}>Fecha</label>
+              <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
+                <button
+                  onClick={saveMovement}
+                  className="rounded-full bg-primary px-6 py-3 font-bold text-white"
+                >
+                  {editingId ? "Actualizar movimiento" : "Guardar movimiento"}
+                </button>
 
-                <div className="flex flex-col gap-2 sm:flex-row">
+                {editingId && (
+                  <button
+                    onClick={resetForm}
+                    className="rounded-full border border-white/10 px-6 py-3 font-bold text-white"
+                  >
+                    Cancelar edición
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 lg:max-w-4xl lg:p-6">
+              <h2 className="text-xl font-bold">
+                {cryptoEditingId
+                  ? "Editar inversión cripto"
+                  : "Nueva inversión cripto"}
+              </h2>
+
+              <div className="mt-6 grid gap-5 md:grid-cols-2">
+                <div>
+                  <label className={labelClass}>Tipo</label>
+                  <select
+                    value={cryptoType}
+                    onChange={(e) => setCryptoType(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="egreso">Egreso</option>
+                    <option value="ingreso">Ingreso</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Cripto / Moneda</label>
+                  <select
+                    value={cryptoCurrency}
+                    onChange={(e) => setCryptoCurrency(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="BTC">Bitcoin BTC</option>
+                    <option value="ETH">Ethereum ETH</option>
+                    <option value="USDT">Tether USDT</option>
+                    <option value="SOL">Solana SOL</option>
+                    <option value="custom">Otra</option>
+                  </select>
+                </div>
+
+                {cryptoCurrency === "custom" && (
+                  <div>
+                    <label className={labelClass}>Cripto personalizada</label>
+                    <input
+                      value={customCryptoCurrency}
+                      onChange={(e) => setCustomCryptoCurrency(e.target.value)}
+                      placeholder="Ej: BNB, ADA, XRP"
+                      className={inputClass}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className={labelClass}>Monto</label>
                   <input
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    type="date"
+                    value={cryptoAmount}
+                    onChange={(e) => setCryptoAmount(e.target.value)}
+                    placeholder="Ej: 0.25"
+                    type="number"
+                    step="any"
                     className={inputClass}
                   />
+                </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setDate(today)}
-                    className="rounded-xl border border-primary/40 px-4 py-3 text-sm font-bold text-primary"
-                  >
-                    Hoy
-                  </button>
+                <div>
+                  <label className={labelClass}>Fecha</label>
 
-                  <button
-                    type="button"
-                    onClick={() => setDate(yesterday)}
-                    className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-textSecondary"
-                  >
-                    Ayer
-                  </button>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={cryptoDate}
+                      onChange={(e) => setCryptoDate(e.target.value)}
+                      type="date"
+                      className={inputClass}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setCryptoDate(today)}
+                      className="rounded-xl border border-primary/40 px-4 py-3 text-sm font-bold text-primary"
+                    >
+                      Hoy
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCryptoDate(yesterday)}
+                      className="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-textSecondary"
+                    >
+                      Ayer
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className={labelClass}>Partida</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    setSelectedCategory(e.target.value)
-                    setSelectedSubcategory("")
-                  }}
-                  className={inputClass}
-                >
-                  <option value="">Selecciona una partida</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="mt-5">
+                <label className={labelClass}>Comentario opcional</label>
+                <textarea
+                  value={cryptoDescription}
+                  onChange={(e) => setCryptoDescription(e.target.value)}
+                  placeholder="Ej: Compra BTC, venta ETH, staking, retiro de exchange..."
+                  className="min-h-28 w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
+                />
               </div>
 
-              <div>
-                <label className={labelClass}>Subpartida</label>
-                <select
-                  value={selectedSubcategory}
-                  onChange={(e) => setSelectedSubcategory(e.target.value)}
-                  className={inputClass}
-                  disabled={!selectedCategory}
-                >
-                  <option value="">Selecciona una subpartida</option>
-                  {formSubcategories.map((subcategory) => (
-                    <option key={subcategory.id} value={subcategory.id}>
-                      {subcategory.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <label className={labelClass}>Comentario opcional</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ej: Compra en supermercado, cena familiar, pago recibido..."
-                className="min-h-28 w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
-              />
-            </div>
-
-            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-              <button
-                onClick={saveMovement}
-                className="rounded-full bg-primary px-6 py-3 font-bold text-white"
-              >
-                {editingId ? "Actualizar movimiento" : "Guardar movimiento"}
-              </button>
-
-              {editingId && (
+              <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
                 <button
-                  onClick={resetForm}
-                  className="rounded-full border border-white/10 px-6 py-3 font-bold text-white"
+                  onClick={saveCryptoInvestment}
+                  className="rounded-full bg-primary px-6 py-3 font-bold text-white"
                 >
-                  Cancelar edición
+                  {cryptoEditingId
+                    ? "Actualizar inversión cripto"
+                    : "Guardar inversión cripto"}
                 </button>
-              )}
+
+                {cryptoEditingId && (
+                  <button
+                    onClick={resetCryptoForm}
+                    className="rounded-full border border-white/10 px-6 py-3 font-bold text-white"
+                  >
+                    Cancelar edición
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
             <h2 className="text-xl font-bold">Filtros</h2>
@@ -433,7 +709,11 @@ function Movements() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {!showHistorical && (
                 <>
-                  <select value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))} className={inputClass}>
+                  <select
+                    value={filterMonth}
+                    onChange={(e) => setFilterMonth(Number(e.target.value))}
+                    className={inputClass}
+                  >
                     {months.map((item) => (
                       <option key={item.value} value={item.value}>
                         {item.label}
@@ -450,49 +730,61 @@ function Movements() {
                 </>
               )}
 
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={inputClass}>
-                <option value="todos">Todos los tipos</option>
-                <option value="gasto">Gastos</option>
-                <option value="ingreso">Ingresos</option>
-              </select>
+              {movementMode === "normal" && (
+                <>
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="todos">Todos los tipos</option>
+                    <option value="gasto">Gastos</option>
+                    <option value="ingreso">Ingresos</option>
+                  </select>
 
-              <select value={filterCurrency} onChange={(e) => setFilterCurrency(e.target.value)} className={inputClass}>
-                <option value="todas">Todas las monedas</option>
-                <option value="₡">Colones ₡</option>
-                <option value="$">Dólares $</option>
-                <option value="€">Euros €</option>
-                <option value="₿">Bitcoin ₿</option>
-              </select>
+                  <select
+                    value={filterCurrency}
+                    onChange={(e) => setFilterCurrency(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="todas">Todas las monedas</option>
+                    <option value="₡">Colones ₡</option>
+                    <option value="$">Dólares $</option>
+                    <option value="€">Euros €</option>
+                    <option value="₿">Bitcoin ₿</option>
+                  </select>
 
-              <select
-                value={filterCategory}
-                onChange={(e) => {
-                  setFilterCategory(e.target.value)
-                  setFilterSubcategory("")
-                }}
-                className={inputClass}
-              >
-                <option value="">Todas las partidas</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => {
+                      setFilterCategory(e.target.value)
+                      setFilterSubcategory("")
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">Todas las partidas</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
 
-              {filterCategory && (
-                <select
-                  value={filterSubcategory}
-                  onChange={(e) => setFilterSubcategory(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">Todas las subpartidas</option>
-                  {filterSubcategories.map((subcategory) => (
-                    <option key={subcategory.id} value={subcategory.id}>
-                      {subcategory.name}
-                    </option>
-                  ))}
-                </select>
+                  {filterCategory && (
+                    <select
+                      value={filterSubcategory}
+                      onChange={(e) => setFilterSubcategory(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Todas las subpartidas</option>
+                      {filterSubcategories.map((subcategory) => (
+                        <option key={subcategory.id} value={subcategory.id}>
+                          {subcategory.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </>
               )}
             </div>
 
@@ -517,68 +809,133 @@ function Movements() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
-            <h2 className="text-xl font-bold">Movimientos guardados</h2>
+          {movementMode === "normal" ? (
+            <div className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
+              <h2 className="text-xl font-bold">Movimientos guardados</h2>
 
-            <div className="mt-6 space-y-4">
-              {movements.length === 0 ? (
-                <p className="text-textSecondary">
-                  No hay movimientos para los filtros seleccionados.
-                </p>
-              ) : (
-                movements.map((movement) => (
-                  <div
-                    key={movement.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
-                  >
-                    <div>
-                      <p className="font-bold">
-                        {movement.type === "ingreso" ? "Ingreso" : "Gasto"} ·{" "}
-                        {movement.categories?.name} / {movement.subcategories?.name}
-                      </p>
-
-                      <p className="text-sm text-textSecondary/70">
-                        {movement.movement_date}
-                      </p>
-
-                      {movement.description && (
-                        <p className="mt-1 text-sm text-textSecondary">
-                          {movement.description}
+              <div className="mt-6 space-y-4">
+                {movements.length === 0 ? (
+                  <p className="text-textSecondary">
+                    No hay movimientos para los filtros seleccionados.
+                  </p>
+                ) : (
+                  movements.map((movement) => (
+                    <div
+                      key={movement.id}
+                      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
+                    >
+                      <div>
+                        <p className="font-bold">
+                          {movement.type === "ingreso" ? "Ingreso" : "Gasto"} ·{" "}
+                          {movement.categories?.name} /{" "}
+                          {movement.subcategories?.name}
                         </p>
-                      )}
+
+                        <p className="text-sm text-textSecondary/70">
+                          {movement.movement_date}
+                        </p>
+
+                        {movement.description && (
+                          <p className="mt-1 text-sm text-textSecondary">
+                            {movement.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p
+                          className={`text-xl font-bold ${
+                            movement.type === "ingreso"
+                              ? "text-secondary"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {movement.currency}
+                          {movement.amount}
+                        </p>
+
+                        <button
+                          onClick={() => editMovement(movement)}
+                          className="rounded-full border border-primary/40 px-4 py-2 text-sm font-bold text-primary"
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => deleteMovement(movement.id)}
+                          className="rounded-full border border-red-400/40 px-4 py-2 text-sm font-bold text-red-400"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p
-                        className={`text-xl font-bold ${
-                          movement.type === "ingreso"
-                            ? "text-secondary"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {movement.currency}
-                        {movement.amount}
-                      </p>
-
-                      <button
-                        onClick={() => editMovement(movement)}
-                        className="rounded-full border border-primary/40 px-4 py-2 text-sm font-bold text-primary"
-                      >
-                        Editar
-                      </button>
-
-                      <button
-                        onClick={() => deleteMovement(movement.id)}
-                        className="rounded-full border border-red-400/40 px-4 py-2 text-sm font-bold text-red-400"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
+              <h2 className="text-xl font-bold">Inversiones cripto guardadas</h2>
+
+              <div className="mt-6 space-y-4">
+                {cryptoInvestments.length === 0 ? (
+                  <p className="text-textSecondary">
+                    No hay inversiones cripto para los filtros seleccionados.
+                  </p>
+                ) : (
+                  cryptoInvestments.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
+                    >
+                      <div>
+                        <p className="font-bold">
+                          {item.type === "ingreso" ? "Ingreso" : "Egreso"} ·{" "}
+                          Inversión cripto
+                        </p>
+
+                        <p className="text-sm text-textSecondary/70">
+                          {item.movement_date}
+                        </p>
+
+                        {item.description && (
+                          <p className="mt-1 text-sm text-textSecondary">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p
+                          className={`text-xl font-bold ${
+                            item.type === "ingreso"
+                              ? "text-secondary"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {item.amount} {item.currency}
+                        </p>
+
+                        <button
+                          onClick={() => editCryptoInvestment(item)}
+                          className="rounded-full border border-primary/40 px-4 py-2 text-sm font-bold text-primary"
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => deleteCryptoInvestment(item.id)}
+                          className="rounded-full border border-red-400/40 px-4 py-2 text-sm font-bold text-red-400"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

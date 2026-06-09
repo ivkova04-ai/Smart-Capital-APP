@@ -12,7 +12,7 @@ function Login() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/movimientos`,
       },
     })
   }
@@ -28,7 +28,7 @@ function Login() {
       return
     }
 
-    navigate("/dashboard")
+    navigate("/movimientos")
   }
 
   async function registerWithEmail() {

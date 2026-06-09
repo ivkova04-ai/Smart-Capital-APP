@@ -15,7 +15,10 @@ function Categories() {
   }, [])
 
   async function fetchCategories() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     const { data, error } = await supabase
@@ -30,7 +33,10 @@ function Categories() {
   }
 
   async function fetchSubcategories() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     const { data, error } = await supabase
@@ -46,7 +52,10 @@ function Categories() {
   async function addCategory() {
     if (!categoryName) return
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     const { error } = await supabase.from("categories").insert({
@@ -66,7 +75,10 @@ function Categories() {
   async function addSubcategory() {
     if (!selectedCategory || !subcategoryName) return
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     const { error } = await supabase.from("subcategories").insert({
@@ -85,6 +97,24 @@ function Categories() {
   }
 
   async function deleteCategory(categoryId: string) {
+    const { data: relatedMovements, error: checkError } = await supabase
+      .from("movements")
+      .select("id")
+      .eq("category_id", categoryId)
+      .limit(1)
+
+    if (checkError) {
+      alert(checkError.message)
+      return
+    }
+
+    if (relatedMovements && relatedMovements.length > 0) {
+      alert(
+        "No puedes eliminar esta partida porque ya tiene movimientos asociados. Primero elimina o edita esos movimientos."
+      )
+      return
+    }
+
     const confirmDelete = confirm("¿Seguro que quieres eliminar esta partida?")
     if (!confirmDelete) return
 
@@ -103,6 +133,24 @@ function Categories() {
   }
 
   async function deleteSubcategory(subcategoryId: string) {
+    const { data: relatedMovements, error: checkError } = await supabase
+      .from("movements")
+      .select("id")
+      .eq("subcategory_id", subcategoryId)
+      .limit(1)
+
+    if (checkError) {
+      alert(checkError.message)
+      return
+    }
+
+    if (relatedMovements && relatedMovements.length > 0) {
+      alert(
+        "No puedes eliminar esta subpartida porque ya tiene movimientos asociados. Primero elimina o edita esos movimientos."
+      )
+      return
+    }
+
     const { error } = await supabase
       .from("subcategories")
       .delete()
@@ -116,12 +164,124 @@ function Categories() {
     fetchSubcategories()
   }
 
+  async function generateSuggestions() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    const suggestions = [
+      {
+        category: "Emergencia",
+        subcategories: ["Veterinario", "Médico"],
+      },
+      {
+        category: "Hormiga",
+        subcategories: ["Membresías", "Parqueos", "Heladería", "AM/PM"],
+      },
+      {
+        category: "Lujos",
+        subcategories: ["Salidas", "Spa", "Regalos", "Ropa"],
+      },
+      {
+        category: "Educación",
+        subcategories: ["Escuela", "Colegio", "Cursos"],
+      },
+      {
+        category: "Básicos",
+        subcategories: [
+          "Alimentación",
+          "Recibos",
+          "Supermercado",
+          "Feria del agricultor",
+        ],
+      },
+      {
+        category: "Ingresos",
+        subcategories: [
+          "Salario",
+          "Regalías",
+          "Comisión",
+          "Servicios profesionales",
+        ],
+      },
+      {
+        category: "Transporte",
+        subcategories: ["Gasolina", "Uber", "Taxi", "Mantenimiento", "Marchamo"],
+      },
+      {
+        category: "Hogar",
+        subcategories: [
+          "Muebles",
+          "Electrodomésticos",
+          "Reparaciones",
+          "Decoración",
+        ],
+      },
+    ]
+
+    const { data: existingCategories } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("user_id", user.id)
+
+    const { data: existingSubcategories } = await supabase
+      .from("subcategories")
+      .select("*")
+      .eq("user_id", user.id)
+
+    for (const item of suggestions) {
+      let category = existingCategories?.find(
+        (c) => c.name.toLowerCase() === item.category.toLowerCase()
+      )
+
+      if (!category) {
+        const { data: createdCategory, error } = await supabase
+          .from("categories")
+          .insert({
+            user_id: user.id,
+            name: item.category,
+          })
+          .select()
+          .single()
+
+        if (error) {
+          alert(error.message)
+          return
+        }
+
+        category = createdCategory
+      }
+
+      for (const subName of item.subcategories) {
+        const exists = existingSubcategories?.find(
+          (s) =>
+            s.category_id === category.id &&
+            s.name.toLowerCase() === subName.toLowerCase()
+        )
+
+        if (!exists) {
+          await supabase.from("subcategories").insert({
+            user_id: user.id,
+            category_id: category.id,
+            name: subName,
+          })
+        }
+      }
+    }
+
+    await fetchCategories()
+    await fetchSubcategories()
+
+    alert("Sugerencias generadas correctamente.")
+  }
+
   const inputClass =
     "w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
 
   const cardClass = "rounded-3xl border border-primary/20 bg-card p-5 lg:p-6"
-
-  return (
+    return (
     <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
@@ -137,6 +297,28 @@ function Categories() {
         </header>
 
         <main className="p-4 lg:p-8">
+          <div className="mb-8 rounded-3xl border border-primary/20 bg-card p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-xl font-bold">
+                  Sugerencias Smart Capital
+                </h2>
+
+                <p className="mt-2 text-sm text-textSecondary">
+                  Genera una estructura base de partidas y subpartidas para
+                  comenzar más rápido.
+                </p>
+              </div>
+
+              <button
+                onClick={generateSuggestions}
+                className="relative w-full overflow-hidden rounded-full bg-white px-6 py-3 font-extrabold text-primary shadow-[0_0_30px_rgba(105,103,251,0.45)] transition hover:scale-[1.02] sm:w-auto"
+              >
+                <span className="relative z-10">✨ Generar sugerencias</span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid gap-6 lg:grid-cols-2">
             <div className={cardClass}>
               <h2 className="text-xl font-bold">Crear partida</h2>
