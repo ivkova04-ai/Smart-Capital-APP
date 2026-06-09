@@ -63,10 +63,10 @@ function Sidebar() {
           })}
         </nav>
 
-        <div className="mt-auto">
+        <div className="mt-10 border-t border-white/10 pt-6">
           <button
             onClick={logout}
-            className="w-full rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 font-bold text-red-400"
+            className="w-full rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 font-bold text-red-400 transition hover:bg-red-500/20"
           >
             Cerrar sesión
           </button>
@@ -101,7 +101,7 @@ function Sidebar() {
             className="absolute inset-0 bg-black/70"
           />
 
-          <aside className="relative z-10 flex h-full w-80 max-w-[85vw] flex-col border-r border-white/10 bg-background p-6">
+          <aside className="relative z-10 flex h-full w-80 max-w-[85vw] flex-col overflow-y-auto border-r border-white/10 bg-background p-6">
             <button
               onClick={() => setOpen(false)}
               className="mb-6 self-end rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-white"

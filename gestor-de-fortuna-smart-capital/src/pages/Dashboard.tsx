@@ -8,15 +8,20 @@ function Dashboard() {
   const [year, setYear] = useState(currentDate.getFullYear())
   const [showHistorical, setShowHistorical] = useState(false)
   const [movements, setMovements] = useState<any[]>([])
+  const [cryptoMovements, setCryptoMovements] = useState<any[]>([])
   const [profileName, setProfileName] = useState("")
 
   useEffect(() => {
     fetchMovements()
+    fetchCryptoMovements()
     fetchProfile()
   }, [month, year, showHistorical])
 
   async function fetchProfile() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     const { data } = await supabase
@@ -29,7 +34,10 @@ function Dashboard() {
   }
 
   async function fetchMovements() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) return
 
     let query = supabase
@@ -59,6 +67,38 @@ function Dashboard() {
     }
 
     setMovements(data || [])
+  }
+
+  async function fetchCryptoMovements() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    let query = supabase
+      .from("crypto_investments")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("movement_date", { ascending: false })
+
+    if (!showHistorical) {
+      const startDate = `${year}-${String(month).padStart(2, "0")}-01`
+      const nextMonth = month === 12 ? 1 : month + 1
+      const nextYear = month === 12 ? year + 1 : year
+      const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`
+
+      query = query.gte("movement_date", startDate).lt("movement_date", endDate)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    setCryptoMovements(data || [])
   }
 
   const usedCurrencies = [...new Set(movements.map((m) => m.currency))]
@@ -99,7 +139,22 @@ function Dashboard() {
     1
   )
 
+  const cryptoIngresos = cryptoMovements
+    .filter((item) => item.type === "ingreso")
+    .reduce((acc, item) => acc + Number(item.amount), 0)
+
+  const cryptoEgresos = cryptoMovements
+    .filter((item) => item.type === "egreso")
+    .reduce((acc, item) => acc + Number(item.amount), 0)
+
+  const cryptoBalance = cryptoIngresos - cryptoEgresos
+
+  const cryptoCurrencies = [
+    ...new Set(cryptoMovements.map((item) => item.currency)),
+  ]
+
   const latestMovements = movements.slice(0, 10)
+  const latestCryptoMovements = cryptoMovements.slice(0, 5)
 
   const months = [
     { value: 1, label: "Enero" },
@@ -120,8 +175,7 @@ function Dashboard() {
     "rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
 
   const cardClass = "rounded-3xl border border-white/10 bg-card p-5 lg:p-6"
-
-  return (
+    return (
     <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
@@ -183,7 +237,7 @@ function Dashboard() {
             </h2>
 
             <p className="mt-3 text-sm text-textSecondary lg:text-base">
-              Estos son los datos más relevantes de tu situación financiera.
+              Resumen de movimientos, gastos, ingresos e inversiones cripto.
             </p>
           </div>
 
@@ -208,21 +262,24 @@ function Dashboard() {
                       <div className={cardClass}>
                         <p className="text-sm text-textSecondary">Balance</p>
                         <h2 className="mt-3 break-words text-3xl font-bold text-primary lg:text-4xl">
-                          {currency}{totals.balance}
+                          {currency}
+                          {totals.balance}
                         </h2>
                       </div>
 
                       <div className={cardClass}>
                         <p className="text-sm text-textSecondary">Ingresos</p>
                         <h2 className="mt-3 break-words text-3xl font-bold text-secondary lg:text-4xl">
-                          {currency}{totals.ingresos}
+                          {currency}
+                          {totals.ingresos}
                         </h2>
                       </div>
 
                       <div className={cardClass}>
                         <p className="text-sm text-textSecondary">Gastos</p>
                         <h2 className="mt-3 break-words text-3xl font-bold text-red-400 lg:text-4xl">
-                          {currency}{totals.gastos}
+                          {currency}
+                          {totals.gastos}
                         </h2>
                       </div>
                     </div>
@@ -231,6 +288,65 @@ function Dashboard() {
               })}
             </div>
           )}
+
+          <div className="mt-8">
+            <h2 className="mb-4 text-xl font-bold lg:text-2xl">
+              Resumen cripto
+            </h2>
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-6">
+              <div className={cardClass}>
+                <p className="text-sm text-textSecondary">Operaciones cripto</p>
+                <h2 className="mt-3 text-3xl font-bold text-primary">
+                  {cryptoMovements.length}
+                </h2>
+              </div>
+
+              <div className={cardClass}>
+                <p className="text-sm text-textSecondary">Ingresos cripto</p>
+                <h2 className="mt-3 text-3xl font-bold text-secondary">
+                  {cryptoIngresos}
+                </h2>
+              </div>
+
+              <div className={cardClass}>
+                <p className="text-sm text-textSecondary">Egresos cripto</p>
+                <h2 className="mt-3 text-3xl font-bold text-red-400">
+                  {cryptoEgresos}
+                </h2>
+              </div>
+
+              <div className={cardClass}>
+                <p className="text-sm text-textSecondary">Balance cripto</p>
+                <h2
+                  className={`mt-3 text-3xl font-bold ${
+                    cryptoBalance >= 0 ? "text-secondary" : "text-red-400"
+                  }`}
+                >
+                  {cryptoBalance}
+                </h2>
+              </div>
+            </div>
+
+            {cryptoCurrencies.length > 0 && (
+              <div className="mt-4 rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
+                <p className="text-sm text-textSecondary">
+                  Criptomonedas registradas
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {cryptoCurrencies.map((currency) => (
+                    <span
+                      key={currency}
+                      className="rounded-full bg-input px-4 py-2 text-sm font-bold text-primary"
+                    >
+                      {currency}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <div className={cardClass}>
@@ -245,9 +361,13 @@ function Dashboard() {
                   Object.values(expensesByCategory).map((item: any) => (
                     <div key={`${item.currency}-${item.category}`}>
                       <div className="mb-2 flex flex-col gap-1 text-sm sm:flex-row sm:justify-between">
-                        <span>{item.currency} {item.category}</span>
+                        <span>
+                          {item.currency} {item.category}
+                        </span>
+
                         <span className="text-primary">
-                          {item.currency}{item.amount}
+                          {item.currency}
+                          {item.amount}
                         </span>
                       </div>
 
@@ -284,7 +404,9 @@ function Dashboard() {
                     const ahorroPorcentaje =
                       totals.ingresos > 0
                         ? Math.round(
-                            ((totals.ingresos - totals.gastos) / totals.ingresos) * 100
+                            ((totals.ingresos - totals.gastos) /
+                              totals.ingresos) *
+                              100
                           )
                         : 0
 
@@ -297,6 +419,7 @@ function Dashboard() {
                             <p className="text-sm text-textSecondary">
                               Gasto sobre ingreso
                             </p>
+
                             <p className="mt-1 text-2xl font-bold text-red-400">
                               {gastoPorcentaje}%
                             </p>
@@ -306,6 +429,7 @@ function Dashboard() {
                             <p className="text-sm text-textSecondary">
                               Porcentaje libre
                             </p>
+
                             <p
                               className={`mt-1 text-2xl font-bold ${
                                 ahorroPorcentaje >= 0
@@ -323,14 +447,17 @@ function Dashboard() {
                             <div className="mb-1 flex justify-between text-sm">
                               <span>Ingresos</span>
                               <span className="text-secondary">
-                                {currency}{totals.ingresos}
+                                {currency}
+                                {totals.ingresos}
                               </span>
                             </div>
 
                             <div className="h-3 rounded-full bg-input">
                               <div
                                 className="h-3 rounded-full bg-secondary"
-                                style={{ width: `${(totals.ingresos / max) * 100}%` }}
+                                style={{
+                                  width: `${(totals.ingresos / max) * 100}%`,
+                                }}
                               />
                             </div>
                           </div>
@@ -339,14 +466,17 @@ function Dashboard() {
                             <div className="mb-1 flex justify-between text-sm">
                               <span>Gastos</span>
                               <span className="text-red-400">
-                                {currency}{totals.gastos}
+                                {currency}
+                                {totals.gastos}
                               </span>
                             </div>
 
                             <div className="h-3 rounded-full bg-input">
                               <div
                                 className="h-3 rounded-full bg-red-400"
-                                style={{ width: `${(totals.gastos / max) * 100}%` }}
+                                style={{
+                                  width: `${(totals.gastos / max) * 100}%`,
+                                }}
                               />
                             </div>
                           </div>
@@ -359,47 +489,99 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
-            <h3 className="text-xl font-bold">Últimos 10 movimientos</h3>
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
+              <h3 className="text-xl font-bold">Últimos 10 movimientos</h3>
 
-            <div className="mt-6 space-y-4">
-              {latestMovements.length === 0 ? (
-                <p className="text-textSecondary">No hay movimientos para mostrar.</p>
-              ) : (
-                latestMovements.map((movement) => (
-                  <div
-                    key={movement.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
-                  >
-                    <div>
-                      <p className="font-bold">
-                        {movement.type === "ingreso" ? "Ingreso" : "Gasto"} ·{" "}
-                        {movement.categories?.name} / {movement.subcategories?.name}
-                      </p>
-
-                      <p className="text-sm text-textSecondary/70">
-                        {movement.movement_date}
-                      </p>
-
-                      {movement.description && (
-                        <p className="mt-1 text-sm text-textSecondary">
-                          {movement.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <p
-                      className={`text-xl font-bold ${
-                        movement.type === "ingreso"
-                          ? "text-secondary"
-                          : "text-red-400"
-                      }`}
+              <div className="mt-6 space-y-4">
+                {latestMovements.length === 0 ? (
+                  <p className="text-textSecondary">
+                    No hay movimientos para mostrar.
+                  </p>
+                ) : (
+                  latestMovements.map((movement) => (
+                    <div
+                      key={movement.id}
+                      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
                     >
-                      {movement.currency}{movement.amount}
-                    </p>
-                  </div>
-                ))
-              )}
+                      <div>
+                        <p className="font-bold">
+                          {movement.type === "ingreso" ? "Ingreso" : "Gasto"} ·{" "}
+                          {movement.categories?.name} /{" "}
+                          {movement.subcategories?.name}
+                        </p>
+
+                        <p className="text-sm text-textSecondary/70">
+                          {movement.movement_date}
+                        </p>
+
+                        {movement.description && (
+                          <p className="mt-1 text-sm text-textSecondary">
+                            {movement.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <p
+                        className={`text-xl font-bold ${
+                          movement.type === "ingreso"
+                            ? "text-secondary"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {movement.currency}
+                        {movement.amount}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
+              <h3 className="text-xl font-bold">Últimas inversiones cripto</h3>
+
+              <div className="mt-6 space-y-4">
+                {latestCryptoMovements.length === 0 ? (
+                  <p className="text-textSecondary">
+                    No hay inversiones cripto para mostrar.
+                  </p>
+                ) : (
+                  latestCryptoMovements.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
+                    >
+                      <div>
+                        <p className="font-bold">
+                          {item.type === "ingreso" ? "Ingreso" : "Egreso"} ·{" "}
+                          Inversión cripto
+                        </p>
+
+                        <p className="text-sm text-textSecondary/70">
+                          {item.movement_date}
+                        </p>
+
+                        {item.description && (
+                          <p className="mt-1 text-sm text-textSecondary">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <p
+                        className={`text-xl font-bold ${
+                          item.type === "ingreso"
+                            ? "text-secondary"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {item.amount} {item.currency}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </main>
