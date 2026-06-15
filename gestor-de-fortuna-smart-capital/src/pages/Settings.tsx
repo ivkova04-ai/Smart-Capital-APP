@@ -60,6 +60,20 @@ function Settings() {
     alert("Configuración guardada correctamente.")
   }
 
+  function formatMoney(amount: number) {
+    return `₡${amount.toLocaleString("es-CR")}`
+  }
+
+  function getPaymentMethodLabel(method: any) {
+    if (!method) return "Sin medio de pago"
+
+    if (method.type === "efectivo") return "Efectivo"
+
+    return `${method.bank || ""} ${method.brand || ""} ${
+      method.type === "debito" ? "Débito" : "Crédito"
+    }`
+  }
+
   async function downloadAccountPDF() {
     const {
       data: { user },
@@ -69,7 +83,12 @@ function Settings() {
 
     const { data: movements } = await supabase
       .from("movements")
-      .select("*, categories(name), subcategories(name)")
+      .select(`
+        *,
+        categories(name),
+        subcategories(name),
+        payment_methods(name, type, brand, bank)
+      `)
       .eq("user_id", user.id)
       .order("movement_date", { ascending: false })
 
@@ -88,10 +107,16 @@ function Settings() {
       .select("*")
       .eq("user_id", user.id)
 
+    const { data: paymentMethods } = await supabase
+      .from("payment_methods")
+      .select("*")
+      .eq("user_id", user.id)
+
     const safeMovements = movements || []
     const safeAssets = assets || []
     const safeLiabilities = liabilities || []
     const safeGoals = goals || []
+    const safePaymentMethods = paymentMethods || []
 
     const totalIngresos = safeMovements
       .filter((item) => item.type === "ingreso")
@@ -123,6 +148,45 @@ function Settings() {
         return acc
       }, {})
 
+    const creditCardBalances = safeMovements
+      .filter(
+        (item) =>
+          item.type === "gasto" &&
+          item.payment_methods &&
+          item.payment_methods.type === "credito"
+      )
+      .reduce((acc: any, item) => {
+        const method = item.payment_methods
+        const cardName =
+          method.name ||
+          `${method.bank || "Banco"} ${method.brand || "Tarjeta"} Crédito`
+
+        const key = `${item.currency}-${cardName}`
+
+        acc[key] = {
+          currency: item.currency,
+          cardName,
+          amount: (acc[key]?.amount || 0) + Number(item.amount),
+        }
+
+        return acc
+      }, {})
+
+    const paymentMethodTotals = safeMovements
+      .filter((item) => item.type === "gasto" && item.payment_methods)
+      .reduce((acc: any, item) => {
+        const label = getPaymentMethodLabel(item.payment_methods)
+        const key = `${item.currency}-${label}`
+
+        acc[key] = {
+          currency: item.currency,
+          label,
+          amount: (acc[key]?.amount || 0) + Number(item.amount),
+        }
+
+        return acc
+      }, {})
+
     const doc = new jsPDF()
 
     doc.setFillColor(18, 18, 18)
@@ -138,7 +202,7 @@ function Settings() {
 
     doc.setTextColor(180, 190, 195)
     doc.setFontSize(10)
-    doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 38)
+    doc.text(`Generado: ${new Date().toLocaleDateString("es-CR")}`, 14, 38)
 
     autoTable(doc, {
       startY: 48,
@@ -159,13 +223,14 @@ function Settings() {
       startY: 90,
       head: [["Resumen financiero", "Monto"]],
       body: [
-        ["Ingresos", `${totalIngresos}`],
-        ["Gastos", `${totalGastos}`],
-        ["Balance", `${balance}`],
-        ["Activos", `${totalActivos}`],
-        ["Pasivos", `${totalPasivos}`],
-        ["Fortuna real", `${fortunaReal}`],
+        ["Ingresos", formatMoney(totalIngresos)],
+        ["Gastos", formatMoney(totalGastos)],
+        ["Balance", formatMoney(balance)],
+        ["Activos", formatMoney(totalActivos)],
+        ["Pasivos", formatMoney(totalPasivos)],
+        ["Fortuna real", formatMoney(fortunaReal)],
         ["Metas activas", `${safeGoals.length}`],
+        ["Medios de pago registrados", `${safePaymentMethods.length}`],
       ],
       theme: "grid",
       headStyles: { fillColor: [105, 103, 251], textColor: 255 },
@@ -174,12 +239,15 @@ function Settings() {
     })
 
     autoTable(doc, {
-      startY: 150,
+      startY: 160,
       head: [["Gastos por partida", "Total"]],
-      body: Object.entries(gastosPorCategoria).map(([category, amount]: any) => [
-        category,
-        `${amount}`,
-      ]),
+      body:
+        Object.keys(gastosPorCategoria).length === 0
+          ? [["Sin gastos registrados", "-"]]
+          : Object.entries(gastosPorCategoria).map(([category, amount]: any) => [
+              category,
+              formatMoney(Number(amount)),
+            ]),
       theme: "grid",
       headStyles: { fillColor: [105, 103, 251], textColor: 255 },
       bodyStyles: { fillColor: [26, 26, 26], textColor: 255 },
@@ -192,25 +260,88 @@ function Settings() {
 
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(18)
-    doc.text("Movimientos registrados", 14, 20)
+    doc.text("Medios de pago y tarjetas", 14, 20)
 
     autoTable(doc, {
       startY: 30,
-      head: [["Fecha", "Tipo", "Partida", "Subpartida", "Monto"]],
-      body: safeMovements.map((item) => [
-        item.movement_date,
-        item.type,
-        item.categories?.name || "-",
-        item.subcategories?.name || "-",
-        `${item.currency}${item.amount}`,
-      ]),
+      head: [["Medio de pago", "Tipo", "Banco", "Marca"]],
+      body:
+        safePaymentMethods.length === 0
+          ? [["Sin medios de pago", "-", "-", "-"]]
+          : safePaymentMethods.map((item) => [
+              item.name || getPaymentMethodLabel(item),
+              item.type || "-",
+              item.bank || "-",
+              item.brand || "-",
+            ]),
       theme: "grid",
       headStyles: { fillColor: [105, 103, 251], textColor: 255 },
       bodyStyles: { fillColor: [26, 26, 26], textColor: 255 },
       styles: { lineColor: [45, 45, 45], fontSize: 8 },
     })
 
-    doc.save("smart-capital-resumen.pdf")
+    autoTable(doc, {
+      startY: 105,
+      head: [["Tarjeta crédito", "Saldo estimado"]],
+      body:
+        Object.keys(creditCardBalances).length === 0
+          ? [["Sin saldo en tarjetas crédito", "-"]]
+          : Object.values(creditCardBalances as Record<string, any>).map(
+              (item: any) => [
+                item.cardName,
+                `${item.currency}${item.amount}`,
+              ]
+            ),
+      theme: "grid",
+      headStyles: { fillColor: [239, 68, 68], textColor: 255 },
+      bodyStyles: { fillColor: [26, 26, 26], textColor: 255 },
+      styles: { lineColor: [45, 45, 45], fontSize: 8 },
+    })
+
+    autoTable(doc, {
+      startY: 170,
+      head: [["Gastos por medio de pago", "Total"]],
+      body:
+        Object.keys(paymentMethodTotals).length === 0
+          ? [["Sin datos", "-"]]
+          : Object.values(paymentMethodTotals as Record<string, any>).map(
+              (item: any) => [
+                item.label,
+                `${item.currency}${item.amount}`,
+              ]
+            ),
+      theme: "grid",
+      headStyles: { fillColor: [56, 189, 248], textColor: 255 },
+      bodyStyles: { fillColor: [26, 26, 26], textColor: 255 },
+      styles: { lineColor: [45, 45, 45], fontSize: 8 },
+    })
+
+    doc.addPage()
+    doc.setFillColor(18, 18, 18)
+    doc.rect(0, 0, 210, 297, "F")
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(18)
+    doc.text("Movimientos registrados", 14, 20)
+
+    autoTable(doc, {
+      startY: 30,
+      head: [["Fecha", "Tipo", "Partida", "Subpartida", "Medio pago", "Monto"]],
+      body: safeMovements.map((item) => [
+        item.movement_date,
+        item.type,
+        item.categories?.name || "-",
+        item.subcategories?.name || "-",
+        getPaymentMethodLabel(item.payment_methods),
+        `${item.currency}${item.amount}`,
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [105, 103, 251], textColor: 255 },
+      bodyStyles: { fillColor: [26, 26, 26], textColor: 255 },
+      styles: { lineColor: [45, 45, 45], fontSize: 7 },
+    })
+
+    doc.save("smart-capital-estado-cuenta.pdf")
   }
 
   function contactUs() {
@@ -285,18 +416,19 @@ function Settings() {
             </div>
 
             <div className="rounded-3xl border border-primary/20 bg-card p-5 lg:p-6">
-              <h2 className="text-xl font-bold">Resumen PDF</h2>
+              <h2 className="text-xl font-bold">Estado de cuenta PDF</h2>
 
               <p className="mt-3 text-sm text-textSecondary">
                 Descarga un reporte con tu perfil, resumen financiero,
-                patrimonio, metas, gastos por partida y movimientos registrados.
+                patrimonio, metas, medios de pago, saldos de tarjetas y
+                movimientos registrados.
               </p>
 
               <button
                 onClick={downloadAccountPDF}
                 className="mt-6 w-full rounded-full bg-white px-6 py-3 font-extrabold text-primary shadow-[0_0_30px_rgba(105,103,251,0.35)] transition hover:scale-[1.02] sm:w-auto"
               >
-                Descargar resumen PDF
+                Descargar estado de cuenta PDF
               </button>
             </div>
 
@@ -305,7 +437,8 @@ function Settings() {
 
               <div className="mt-6 space-y-4 text-sm text-textSecondary">
                 <p>✅ Movimientos conectados</p>
-                <p>✅ Inversiones cripto conectadas</p>
+                <p>✅ Medios de pago conectados</p>
+                <p>✅ Tarjetas de crédito monitoreadas</p>
                 <p>✅ Presupuesto inteligente activo</p>
                 <p>✅ Patrimonio conectado</p>
                 <p>✅ Metas financieras activas</p>

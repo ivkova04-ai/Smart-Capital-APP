@@ -32,23 +32,29 @@ function Budget() {
       .from("categories")
       .select("*")
       .eq("user_id", user.id)
+      .neq("name", "Ingreso")
       .order("created_at", { ascending: false })
 
     const { data: budgetsData } = await supabase
       .from("budgets")
-      .select("*")
+      .select("*, categories(name)")
       .eq("user_id", user.id)
 
     const { data: movementsData } = await supabase
       .from("movements")
       .select("*")
       .eq("user_id", user.id)
-      .eq("type", "gasto")
       .gte("movement_date", startDate)
       .lt("movement_date", endDate)
 
     setCategories(categoriesData || [])
-    setBudgets(budgetsData || [])
+
+    setBudgets(
+      (budgetsData || []).filter(
+        (budget: any) => budget.categories?.name?.toLowerCase() !== "ingreso"
+      )
+    )
+
     setMovements(movementsData || [])
   }
 
@@ -62,6 +68,13 @@ function Budget() {
     } = await supabase.auth.getUser()
 
     if (!user) return
+
+    const category = categories.find((item) => item.id === categoryId)
+
+    if (category?.name?.toLowerCase() === "ingreso") {
+      alert("La partida Ingreso no se puede presupuestar.")
+      return
+    }
 
     const existingBudget = getBudgetForCategory(categoryId)
 
@@ -81,24 +94,47 @@ function Budget() {
     fetchData()
   }
 
-  const totalIdeal = budgets.reduce(
-    (acc, budget) => acc + Number(budget.ideal_percentage),
-    0
+  const incomeMovements = movements.filter(
+    (movement) => movement.type === "ingreso"
   )
 
-  const totalExpenses = movements.reduce(
+  const expenseMovements = movements.filter(
+    (movement) => movement.type === "gasto"
+  )
+
+  const totalIncome = incomeMovements.reduce(
     (acc, movement) => acc + Number(movement.amount),
     0
   )
 
+  const totalExpenses = expenseMovements.reduce(
+    (acc, movement) => acc + Number(movement.amount),
+    0
+  )
+
+  const availableMoney = totalIncome - totalExpenses
+
+  const totalIdeal = categories.reduce((acc, category) => {
+    const budget = getBudgetForCategory(category.id)
+    return acc + Number(budget?.ideal_percentage || 0)
+  }, 0)
+
+  function getCategoryExpense(categoryId: string) {
+    return expenseMovements
+      .filter((movement) => movement.category_id === categoryId)
+      .reduce((acc, movement) => acc + Number(movement.amount), 0)
+  }
+
   function getRealPercentage(categoryId: string) {
     if (totalExpenses === 0) return 0
 
-    const categoryExpense = movements
-      .filter((movement) => movement.category_id === categoryId)
-      .reduce((acc, movement) => acc + Number(movement.amount), 0)
+    const categoryExpense = getCategoryExpense(categoryId)
 
     return Math.round((categoryExpense / totalExpenses) * 100)
+  }
+
+  function formatMoney(amount: number) {
+    return `₡${amount.toLocaleString("es-CR")}`
   }
 
   const alignmentScore =
@@ -151,7 +187,7 @@ function Budget() {
             </h1>
 
             <p className="text-sm text-textSecondary">
-              Compara tu presupuesto ideal contra tus gastos reales.
+              Compara tu presupuesto contra tus ingresos y gastos reales.
             </p>
           </div>
 
@@ -204,6 +240,36 @@ function Budget() {
             </p>
           </div>
 
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
+            <div className={cardClass}>
+              <p className="text-sm text-textSecondary">Ingresos del periodo</p>
+
+              <h2 className="mt-2 break-words text-3xl font-bold text-secondary">
+                {formatMoney(totalIncome)}
+              </h2>
+            </div>
+
+            <div className={cardClass}>
+              <p className="text-sm text-textSecondary">Gastos del periodo</p>
+
+              <h2 className="mt-2 break-words text-3xl font-bold text-red-400">
+                {formatMoney(totalExpenses)}
+              </h2>
+            </div>
+
+            <div className={cardClass}>
+              <p className="text-sm text-textSecondary">Disponible</p>
+
+              <h2
+                className={`mt-2 break-words text-3xl font-bold ${
+                  availableMoney >= 0 ? "text-primary" : "text-red-400"
+                }`}
+              >
+                {formatMoney(availableMoney)}
+              </h2>
+            </div>
+          </div>
+
           <div className="mb-6 rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
             <p className="text-sm text-textSecondary">Total ideal asignado</p>
 
@@ -245,12 +311,13 @@ function Budget() {
               <div className="mt-6 space-y-5">
                 {categories.length === 0 ? (
                   <p className="text-textSecondary">
-                    Primero debes crear partidas en Categorías.
+                    Primero debes crear partidas de gasto en Categorías.
                   </p>
                 ) : (
                   categories.map((category) => {
                     const budget = getBudgetForCategory(category.id)
-                    const percentage = budget?.ideal_percentage || 0
+                    const percentage = Number(budget?.ideal_percentage || 0)
+                    const idealAmount = (totalIncome * percentage) / 100
 
                     return (
                       <div
@@ -263,6 +330,10 @@ function Budget() {
 
                             <p className="mt-1 text-sm text-textSecondary">
                               Ideal: {percentage}%
+                            </p>
+
+                            <p className="mt-1 text-sm text-primary">
+                              Monto ideal: {formatMoney(idealAmount)}
                             </p>
                           </div>
 
@@ -302,6 +373,10 @@ function Budget() {
                     const real = getRealPercentage(category.id)
                     const difference = real - ideal
 
+                    const idealAmount = (totalIncome * ideal) / 100
+                    const realAmount = getCategoryExpense(category.id)
+                    const moneyDifference = realAmount - idealAmount
+
                     return (
                       <div
                         key={category.id}
@@ -313,6 +388,27 @@ function Budget() {
 
                             <p className="mt-1 text-sm text-textSecondary">
                               Ideal: {ideal}% · Real: {real}%
+                            </p>
+
+                            <p className="mt-1 text-sm text-primary">
+                              Monto ideal: {formatMoney(idealAmount)}
+                            </p>
+
+                            <p className="mt-1 text-sm text-textSecondary">
+                              Gasto real: {formatMoney(realAmount)}
+                            </p>
+
+                            <p
+                              className={`mt-1 text-sm font-bold ${
+                                moneyDifference > 0
+                                  ? "text-red-400"
+                                  : "text-secondary"
+                              }`}
+                            >
+                              Desvío:{" "}
+                              {moneyDifference > 0
+                                ? `+${formatMoney(moneyDifference)}`
+                                : formatMoney(moneyDifference)}
                             </p>
                           </div>
 

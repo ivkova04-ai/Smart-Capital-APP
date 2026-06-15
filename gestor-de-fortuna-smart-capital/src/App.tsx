@@ -1,12 +1,13 @@
  import { BrowserRouter, Routes, Route } from "react-router-dom"
 import Home from "./pages/Home"
 import Login from "./pages/Login"
-import Dashboard from "./pages/Dashboard.tsx"
+import Dashboard from "./pages/Dashboard"
 import Movements from "./pages/Movements"
 import Categories from "./pages/Categories"
 import Goals from "./pages/Goals"
 import Budget from "./pages/Budget"
 import Wealth from "./pages/Wealth"
+import Debts from "./pages/Debts"
 import Analytics from "./pages/Analytics"
 import Settings from "./pages/Settings"
 
@@ -21,6 +22,7 @@ function App() {
         <Route path="/categorias" element={<Categories />} />
         <Route path="/presupuesto" element={<Budget />} />
         <Route path="/patrimonio" element={<Wealth />} />
+        <Route path="/deudas" element={<Debts />} />
         <Route path="/metas" element={<Goals />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/configuracion" element={<Settings />} />

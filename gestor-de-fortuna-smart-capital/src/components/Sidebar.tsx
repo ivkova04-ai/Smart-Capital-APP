@@ -15,6 +15,7 @@ function Sidebar() {
     { name: "Patrimonio", path: "/patrimonio" },
     { name: "Presupuesto", path: "/presupuesto" },
     { name: "Metas", path: "/metas" },
+    { name: "Deudas", path: "/deudas" },
     { name: "Configuración", path: "/configuracion" },
   ]
 
