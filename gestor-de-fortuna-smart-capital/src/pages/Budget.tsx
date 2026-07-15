@@ -1,26 +1,126 @@
- import { useEffect, useState } from "react"
+  import { useEffect, useMemo, useState } from "react"
 import Sidebar from "../components/Sidebar"
 import { supabase } from "../lib/supabase"
+
+type Category = {
+  id: string
+  user_id: string
+  name: string
+  created_at?: string
+}
+
+type BudgetRecord = {
+  id: string
+  user_id: string
+  category_id: string
+  ideal_amount?: number | null
+  ideal_percentage?: number | null
+  currency?: string | null
+  categories?: {
+    name?: string | null
+  } | null
+}
+
+type Movement = {
+  id: string
+  user_id: string
+  type: "gasto" | "ingreso" | "inversion" | "abono_deuda"
+  amount: number
+  currency: string
+  category_id?: string | null
+  movement_date: string
+}
+
+const BUDGET_CATEGORIES = [
+  {
+    name: "Supervivencia",
+    suggestedPercentage: 40,
+    description: "Vivienda, alimentación, servicios y necesidades esenciales.",
+  },
+  {
+    name: "Educación",
+    suggestedPercentage: 15,
+    description: "Formación, aprendizaje y crecimiento profesional.",
+  },
+  {
+    name: "Lujos",
+    suggestedPercentage: 13,
+    description: "Consumos opcionales y disfrute personal.",
+  },
+  {
+    name: "Gastos Hormiga",
+    suggestedPercentage: 2,
+    description: "Pequeños gastos frecuentes y de bajo valor individual.",
+  },
+  {
+    name: "Donativos",
+    suggestedPercentage: 10,
+    description: "Aportes, regalos y contribuciones voluntarias.",
+  },
+  {
+    name: "Deuda",
+    suggestedPercentage: 0,
+    description: "Abonos realizados para reducir tus pasivos.",
+  },
+  {
+    name: "Ahorro e Inversión",
+    suggestedPercentage: 20,
+    description: "Construcción de ahorro, inversión y patrimonio.",
+  },
+] as const
+
+function normalizeName(value?: string | null) {
+  return (value || "").trim().toLocaleLowerCase("es")
+}
 
 function Budget() {
   const currentDate = new Date()
 
-  const [categories, setCategories] = useState<any[]>([])
-  const [budgets, setBudgets] = useState<any[]>([])
-  const [movements, setMovements] = useState<any[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [budgets, setBudgets] = useState<BudgetRecord[]>([])
+  const [movements, setMovements] = useState<Movement[]>([])
 
   const [month, setMonth] = useState(currentDate.getMonth() + 1)
   const [year, setYear] = useState(currentDate.getFullYear())
   const [selectedCurrency, setSelectedCurrency] = useState("₡")
 
+  const [objectiveDrafts, setObjectiveDrafts] = useState<
+    Record<string, string>
+  >({})
+  const [savingCategoryId, setSavingCategoryId] = useState("")
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
-    fetchData()
+    void fetchData()
   }, [month, year])
+
+  useEffect(() => {
+    const nextDrafts: Record<string, string> = {}
+
+    for (const category of categories) {
+      const budget = getBudgetForCategory(
+        category.id,
+        selectedCurrency
+      )
+
+      nextDrafts[category.id] = String(
+        Number(budget?.ideal_percentage || 0)
+      )
+    }
+
+    setObjectiveDrafts(nextDrafts)
+  }, [categories, budgets, selectedCurrency])
 
   async function getUser() {
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error(error)
+      return null
+    }
 
     return user
   }
@@ -29,55 +129,84 @@ function Budget() {
     const user = await getUser()
     if (!user) return
 
+    setLoading(true)
+
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`
     const nextMonth = month === 12 ? 1 : month + 1
     const nextYear = month === 12 ? year + 1 : year
     const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`
 
-    const { data: categoriesData } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
+    const [
+      { data: categoriesData, error: categoriesError },
+      { data: budgetsData, error: budgetsError },
+      { data: movementsData, error: movementsError },
+    ] = await Promise.all([
+      supabase
+        .from("categories")
+        .select("*")
+        .eq("user_id", user.id),
 
-    const { data: budgetsData } = await supabase
-      .from("budgets")
-      .select("*, categories(name)")
-      .eq("user_id", user.id)
+      supabase
+        .from("budgets")
+        .select("*, categories(name)")
+        .eq("user_id", user.id),
 
-    const { data: movementsData } = await supabase
-      .from("movements")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("movement_date", startDate)
-      .lt("movement_date", endDate)
+      supabase
+        .from("movements")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("movement_date", startDate)
+        .lt("movement_date", endDate),
+    ])
 
-    setCategories(
-      (categoriesData || []).filter(
-        (category: any) => category.name?.toLowerCase() !== "ingreso"
+    if (categoriesError) {
+      setLoading(false)
+      alert(categoriesError.message)
+      return
+    }
+
+    if (budgetsError) {
+      setLoading(false)
+      alert(budgetsError.message)
+      return
+    }
+
+    if (movementsError) {
+      setLoading(false)
+      alert(movementsError.message)
+      return
+    }
+
+    const orderedCategories = BUDGET_CATEGORIES.map((budgetCategory) =>
+      (categoriesData || []).find(
+        (category) =>
+          normalizeName(category.name) ===
+          normalizeName(budgetCategory.name)
       )
-    )
+    ).filter(Boolean) as Category[]
 
-    setBudgets(
-      (budgetsData || []).filter(
-        (budget: any) => budget.categories?.name?.toLowerCase() !== "ingreso"
-      )
-    )
-
-    setMovements(movementsData || [])
+    setCategories(orderedCategories)
+    setBudgets((budgetsData || []) as BudgetRecord[])
+    setMovements((movementsData || []) as Movement[])
+    setLoading(false)
   }
 
-  const availableCurrencies = [
-    ...new Set([
-      "₡",
-      "$",
-      "€",
-      ...movements.map((movement) => movement.currency),
-      ...budgets.map((budget) => budget.currency || "₡"),
-    ]),
-  ]
+  const availableCurrencies = useMemo(() => {
+    return [
+      ...new Set([
+        "₡",
+        "$",
+        "€",
+        ...movements.map((movement) => movement.currency),
+        ...budgets.map((budget) => budget.currency || "₡"),
+      ]),
+    ].filter(Boolean)
+  }, [movements, budgets])
 
-  function getBudgetForCategory(categoryId: string, currency: string) {
+  function getBudgetForCategory(
+    categoryId: string,
+    currency: string
+  ) {
     return budgets.find(
       (budget) =>
         budget.category_id === categoryId &&
@@ -85,34 +214,50 @@ function Budget() {
     )
   }
 
-  async function saveBudgetAmount(
+  function getCategoryConfig(categoryName: string) {
+    return BUDGET_CATEGORIES.find(
+      (item) =>
+        normalizeName(item.name) === normalizeName(categoryName)
+    )
+  }
+
+  async function saveObjectivePercentage(
     categoryId: string,
-    currency: string,
-    idealAmount: number
+    percentage: number
   ) {
     const user = await getUser()
     if (!user) return
 
-    const category = categories.find((item) => item.id === categoryId)
+    const normalizedPercentage = Math.max(
+      0,
+      Math.min(Number(percentage || 0), 100)
+    )
 
-    if (category?.name?.toLowerCase() === "ingreso") {
-      alert("La partida Ingreso no se puede presupuestar.")
-      return
-    }
+    const existingBudget = getBudgetForCategory(
+      categoryId,
+      selectedCurrency
+    )
 
-    const existingBudget = getBudgetForCategory(categoryId, currency)
+    const calculatedAmount =
+      totalIncome > 0
+        ? (totalIncome * normalizedPercentage) / 100
+        : 0
+
+    setSavingCategoryId(categoryId)
 
     if (existingBudget) {
       const { error } = await supabase
         .from("budgets")
         .update({
-          ideal_amount: idealAmount,
-          currency,
+          ideal_percentage: normalizedPercentage,
+          ideal_amount: calculatedAmount,
+          currency: selectedCurrency,
         })
         .eq("id", existingBudget.id)
         .eq("user_id", user.id)
 
       if (error) {
+        setSavingCategoryId("")
         alert(error.message)
         return
       }
@@ -120,76 +265,113 @@ function Budget() {
       const { error } = await supabase.from("budgets").insert({
         user_id: user.id,
         category_id: categoryId,
-        ideal_amount: idealAmount,
-        currency,
-        ideal_percentage: 0,
+        ideal_percentage: normalizedPercentage,
+        ideal_amount: calculatedAmount,
+        currency: selectedCurrency,
       })
 
       if (error) {
+        setSavingCategoryId("")
         alert(error.message)
         return
       }
     }
 
-    fetchData()
+    await fetchData()
+    setSavingCategoryId("")
   }
 
-  const incomeMovements = movements.filter(
-    (movement) =>
-      movement.type === "ingreso" && movement.currency === selectedCurrency
+  const currencyMovements = movements.filter(
+    (movement) => movement.currency === selectedCurrency
   )
 
-  const expenseMovements = movements.filter(
+  const incomeMovements = currencyMovements.filter(
+    (movement) => movement.type === "ingreso"
+  )
+
+  const outgoingMovements = currencyMovements.filter(
     (movement) =>
-      movement.type === "gasto" && movement.currency === selectedCurrency
+      movement.type === "gasto" ||
+      movement.type === "inversion" ||
+      movement.type === "abono_deuda"
   )
 
   const totalIncome = incomeMovements.reduce(
-    (acc, movement) => acc + Number(movement.amount),
+    (total, movement) => total + Number(movement.amount || 0),
     0
   )
 
-  const totalExpenses = expenseMovements.reduce(
-    (acc, movement) => acc + Number(movement.amount),
+  const totalOutgoing = outgoingMovements.reduce(
+    (total, movement) => total + Number(movement.amount || 0),
     0
   )
 
-  const availableMoney = totalIncome - totalExpenses
+  const availableMoney = totalIncome - totalOutgoing
 
-  const totalIdealAmount = categories.reduce((acc, category) => {
-    const budget = getBudgetForCategory(category.id, selectedCurrency)
-    return acc + Number(budget?.ideal_amount || 0)
-  }, 0)
-
-  const totalIdealPercentage =
-    totalIncome > 0 ? Math.round((totalIdealAmount / totalIncome) * 100) : 0
-
-  function getCategoryExpense(categoryId: string) {
-    return expenseMovements
+  function getCategoryCurrentAmount(categoryId: string) {
+    return outgoingMovements
       .filter((movement) => movement.category_id === categoryId)
-      .reduce((acc, movement) => acc + Number(movement.amount), 0)
+      .reduce(
+        (total, movement) => total + Number(movement.amount || 0),
+        0
+      )
   }
 
-  function getIdealPercentage(categoryId: string) {
-    if (totalIncome === 0) return 0
+  function getCurrentPercentage(categoryId: string) {
+    if (totalIncome <= 0) return 0
 
-    const budget = getBudgetForCategory(categoryId, selectedCurrency)
-    const idealAmount = Number(budget?.ideal_amount || 0)
-
-    return Math.round((idealAmount / totalIncome) * 100)
+    return (
+      (getCategoryCurrentAmount(categoryId) / totalIncome) *
+      100
+    )
   }
 
-  function getRealPercentage(categoryId: string) {
-    if (totalIncome === 0) return 0
+  function getObjectivePercentage(categoryId: string) {
+    const draftValue = objectiveDrafts[categoryId]
 
-    const categoryExpense = getCategoryExpense(categoryId)
+    if (draftValue !== undefined) {
+      return Number(draftValue || 0)
+    }
 
-    return Math.round((categoryExpense / totalIncome) * 100)
+    const budget = getBudgetForCategory(
+      categoryId,
+      selectedCurrency
+    )
+
+    return Number(budget?.ideal_percentage || 0)
+  }
+
+  function formatPercentage(value: number) {
+    return `${Number(value || 0).toLocaleString("es-CR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    })}%`
   }
 
   function formatMoney(currency: string, amount: number) {
-    return `${currency}${Number(amount || 0).toLocaleString("es-CR")}`
+    return `${currency}${Number(amount || 0).toLocaleString(
+      "es-CR",
+      {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }
+    )}`
   }
+
+  const totalObjectivePercentage = categories.reduce(
+    (total, category) =>
+      total + getObjectivePercentage(category.id),
+    0
+  )
+
+  const totalSuggestedPercentage = BUDGET_CATEGORIES.reduce(
+    (total, category) =>
+      total + category.suggestedPercentage,
+    0
+  )
+
+  const currentDistributionPercentage =
+    totalIncome > 0 ? (totalOutgoing / totalIncome) * 100 : 0
 
   const alignmentScore =
     categories.length === 0
@@ -198,11 +380,12 @@ function Budget() {
           0,
           Math.round(
             100 -
-              categories.reduce((acc, category) => {
-                const ideal = getIdealPercentage(category.id)
-                const real = getRealPercentage(category.id)
+              categories.reduce((total, category) => {
+                const objective =
+                  getObjectivePercentage(category.id)
+                const current = getCurrentPercentage(category.id)
 
-                return acc + Math.abs(ideal - real)
+                return total + Math.abs(objective - current)
               }, 0) /
                 categories.length
           )
@@ -226,8 +409,10 @@ function Budget() {
   const inputClass =
     "rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
 
-  const cardClass = "rounded-3xl border border-white/10 bg-card p-5 lg:p-6"
-    return (
+  const cardClass =
+    "rounded-3xl border border-white/10 bg-card p-5 lg:p-6"
+
+  return (
     <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
@@ -235,18 +420,24 @@ function Budget() {
         <header className="flex flex-col gap-4 border-b border-white/10 px-4 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
             <h1 className="text-2xl font-bold">
-              Presupuesto <span className="text-primary">por Montos</span>
+              Mi{" "}
+              <span className="text-primary">
+                Presupuesto Ideal
+              </span>
             </h1>
 
-            <p className="text-sm text-textSecondary">
-              Define montos ideales por partida. Los porcentajes se calculan automáticamente con tus ingresos.
+            <p className="mt-1 text-sm text-textSecondary">
+              Compara la recomendación de Smart Capital, tu estado
+              actual y el objetivo que deseas alcanzar.
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <select
               value={selectedCurrency}
-              onChange={(e) => setSelectedCurrency(e.target.value)}
+              onChange={(event) =>
+                setSelectedCurrency(event.target.value)
+              }
               className={inputClass}
             >
               {availableCurrencies.map((currency) => (
@@ -258,7 +449,9 @@ function Budget() {
 
             <select
               value={month}
-              onChange={(e) => setMonth(Number(e.target.value))}
+              onChange={(event) =>
+                setMonth(Number(event.target.value))
+              }
               className={inputClass}
             >
               {months.map((item) => (
@@ -270,7 +463,9 @@ function Budget() {
 
             <input
               value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
+              onChange={(event) =>
+                setYear(Number(event.target.value))
+              }
               type="number"
               className={`${inputClass} sm:w-28`}
             />
@@ -278,55 +473,47 @@ function Budget() {
         </header>
 
         <main className="p-4 lg:p-8">
-          <div className="mb-6 rounded-3xl border border-white/10 bg-card p-5 lg:p-6">
-            <p className="text-sm text-textSecondary">
-              Alineación con presupuesto ideal en {selectedCurrency}
+          <section className="mb-6 rounded-3xl border border-secondary/20 bg-card p-5 lg:p-7">
+            <p className="text-sm font-bold uppercase tracking-wider text-secondary">
+              Ingreso del período
             </p>
 
-            <h2
-              className={`mt-2 text-4xl font-bold lg:text-5xl ${
-                alignmentScore >= 80
-                  ? "text-secondary"
-                  : alignmentScore >= 60
-                  ? "text-primary"
-                  : "text-red-400"
-              }`}
-            >
-              {alignmentScore}%
+            <h2 className="mt-2 break-words text-4xl font-bold text-secondary lg:text-5xl">
+              {formatMoney(selectedCurrency, totalIncome)}
             </h2>
 
             <p className="mt-3 text-sm text-textSecondary">
-              {alignmentScore >= 80
-                ? "Excelente. Tus gastos están bastante alineados con tu presupuesto ideal."
-                : alignmentScore >= 60
-                ? "Vas bien, pero hay partidas que necesitan ajustes."
-                : "Tu gasto real está bastante alejado de tu presupuesto ideal."}
+              Este ingreso es la base para calcular la distribución
+              porcentual de tu presupuesto.
             </p>
-          </div>
+          </section>
 
-          <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className={cardClass}>
-              <p className="text-sm text-textSecondary">Ingresos del periodo</p>
-
-              <h2 className="mt-2 break-words text-3xl font-bold text-secondary">
-                {formatMoney(selectedCurrency, totalIncome)}
-              </h2>
-            </div>
-
-            <div className={cardClass}>
-              <p className="text-sm text-textSecondary">Gastos del periodo</p>
+              <p className="text-sm text-textSecondary">
+                Salidas del período
+              </p>
 
               <h2 className="mt-2 break-words text-3xl font-bold text-red-400">
-                {formatMoney(selectedCurrency, totalExpenses)}
+                {formatMoney(selectedCurrency, totalOutgoing)}
               </h2>
+
+              <p className="mt-2 text-sm text-textSecondary">
+                {formatPercentage(currentDistributionPercentage)} del
+                ingreso
+              </p>
             </div>
 
             <div className={cardClass}>
-              <p className="text-sm text-textSecondary">Disponible</p>
+              <p className="text-sm text-textSecondary">
+                Disponible
+              </p>
 
               <h2
                 className={`mt-2 break-words text-3xl font-bold ${
-                  availableMoney >= 0 ? "text-primary" : "text-red-400"
+                  availableMoney >= 0
+                    ? "text-primary"
+                    : "text-red-400"
                 }`}
               >
                 {formatMoney(selectedCurrency, availableMoney)}
@@ -334,201 +521,380 @@ function Budget() {
             </div>
 
             <div className={cardClass}>
-              <p className="text-sm text-textSecondary">Ideal asignado</p>
+              <p className="text-sm text-textSecondary">
+                Objetivo asignado
+              </p>
 
               <h2
-                className={`mt-2 break-words text-3xl font-bold ${
-                  totalIdealAmount <= totalIncome ? "text-primary" : "text-red-400"
+                className={`mt-2 text-3xl font-bold ${
+                  totalObjectivePercentage === 100
+                    ? "text-secondary"
+                    : totalObjectivePercentage > 100
+                      ? "text-red-400"
+                      : "text-primary"
                 }`}
               >
-                {formatMoney(selectedCurrency, totalIdealAmount)}
+                {formatPercentage(totalObjectivePercentage)}
               </h2>
 
-              <p
-                className={`mt-2 text-sm font-bold ${
-                  totalIdealPercentage <= 100 ? "text-secondary" : "text-red-400"
-                }`}
-              >
-                {totalIdealPercentage}% del ingreso
-              </p>
-            </div>
-          </div>
-
-          {totalIncome === 0 && (
-            <div className="mb-6 rounded-3xl border border-primary/20 bg-card p-5 lg:p-6">
-              <p className="text-sm text-primary">
-                No hay ingresos registrados en {selectedCurrency} para este periodo.
-                Puedes asignar montos, pero los porcentajes se calcularán cuando existan ingresos.
-              </p>
-            </div>
-          )}
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-primary/20 bg-card p-5 lg:p-6">
-              <h2 className="text-xl font-bold">Presupuesto ideal</h2>
-
               <p className="mt-2 text-sm text-textSecondary">
-                Ingresa montos ideales por partida para la moneda seleccionada.
+                {totalObjectivePercentage === 100
+                  ? "Tu objetivo está completamente distribuido."
+                  : totalObjectivePercentage < 100
+                    ? `Falta asignar ${formatPercentage(
+                        100 - totalObjectivePercentage
+                      )}.`
+                    : `Excede por ${formatPercentage(
+                        totalObjectivePercentage - 100
+                      )}.`}
               </p>
-
-              <div className="mt-6 space-y-5">
-                {categories.length === 0 ? (
-                  <p className="text-textSecondary">
-                    Primero debes crear partidas de gasto en Categorías.
-                  </p>
-                ) : (
-                  categories.map((category) => {
-                    const budget = getBudgetForCategory(category.id, selectedCurrency)
-                    const idealAmount = Number(budget?.ideal_amount || 0)
-                    const idealPercentage = getIdealPercentage(category.id)
-
-                    return (
-                      <div
-                        key={category.id}
-                        className="rounded-2xl border border-white/10 bg-input p-4 lg:p-5"
-                      >
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <h3 className="text-lg font-bold">{category.name}</h3>
-
-                            <p className="mt-1 text-sm text-primary">
-                              Monto ideal:{" "}
-                              {formatMoney(selectedCurrency, idealAmount)}
-                            </p>
-
-                            <p className="mt-1 text-sm text-textSecondary">
-                              % ideal calculado: {idealPercentage}%
-                            </p>
-                          </div>
-
-                          <input
-                            type="number"
-                            defaultValue={idealAmount}
-                            onBlur={(e) =>
-                              saveBudgetAmount(
-                                category.id,
-                                selectedCurrency,
-                                Number(e.target.value || 0)
-                              )
-                            }
-                            placeholder="Monto"
-                            className="w-full rounded-xl border border-white/10 bg-card px-4 py-3 text-white outline-none focus:border-primary/60 sm:w-36"
-                          />
-                        </div>
-
-                        <div className="mt-4 h-3 rounded-full bg-card">
-                          <div
-                            className="h-3 rounded-full bg-primary"
-                            style={{
-                              width: `${Math.min(idealPercentage, 100)}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
             </div>
 
             <div className={cardClass}>
-              <h2 className="text-xl font-bold">Presupuesto real</h2>
-
-              <p className="mt-2 text-sm text-textSecondary">
-                Compara monto ideal contra gasto real y porcentaje sobre ingreso.
+              <p className="text-sm text-textSecondary">
+                Alineación con mi objetivo
               </p>
 
-              <div className="mt-6 space-y-5">
-                {categories.length === 0 ? (
-                  <p className="text-textSecondary">No hay partidas para analizar.</p>
-                ) : (
-                  categories.map((category) => {
-                    const budget = getBudgetForCategory(category.id, selectedCurrency)
-                    const idealAmount = Number(budget?.ideal_amount || 0)
-                    const realAmount = getCategoryExpense(category.id)
+              <h2
+                className={`mt-2 text-3xl font-bold ${
+                  alignmentScore >= 80
+                    ? "text-secondary"
+                    : alignmentScore >= 60
+                      ? "text-primary"
+                      : "text-red-400"
+                }`}
+              >
+                {alignmentScore}%
+              </h2>
+            </div>
+          </section>
 
-                    const ideal = getIdealPercentage(category.id)
-                    const real = getRealPercentage(category.id)
-                    const difference = real - ideal
-                    const moneyDifference = realAmount - idealAmount
+          {totalIncome === 0 && (
+            <section className="mb-6 rounded-3xl border border-amber-400/30 bg-amber-400/5 p-5 lg:p-6">
+              <p className="font-bold text-amber-300">
+                No existen ingresos registrados en{" "}
+                {selectedCurrency} para este período.
+              </p>
 
-                    return (
-                      <div
-                        key={category.id}
-                        className="rounded-2xl border border-white/10 bg-input p-4 lg:p-5"
-                      >
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <h3 className="text-lg font-bold">{category.name}</h3>
+              <p className="mt-2 text-sm text-textSecondary">
+                Puedes definir tus objetivos, pero el estado actual
+                permanecerá en 0% hasta que registres ingresos.
+              </p>
+            </section>
+          )}
+                    <section className="rounded-3xl border border-primary/20 bg-card p-4 lg:p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  Mi Presupuesto Ideal
+                </h2>
 
-                            <p className="mt-1 text-sm text-textSecondary">
-                              Ideal: {ideal}% · Real: {real}%
-                            </p>
+                <p className="mt-2 text-sm text-textSecondary">
+                  Compara el modelo sugerido, tu comportamiento
+                  financiero actual y tu objetivo personal.
+                </p>
+              </div>
 
-                            <p className="mt-1 text-sm text-primary">
-                              Monto ideal:{" "}
-                              {formatMoney(selectedCurrency, idealAmount)}
-                            </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-bold text-primary">
+                  Sugerido: {totalSuggestedPercentage}%
+                </span>
 
-                            <p className="mt-1 text-sm text-textSecondary">
-                              Gasto real:{" "}
-                              {formatMoney(selectedCurrency, realAmount)}
-                            </p>
+                <span
+                  className={`rounded-full border px-4 py-2 text-sm font-bold ${
+                    totalObjectivePercentage === 100
+                      ? "border-secondary/30 bg-secondary/10 text-secondary"
+                      : totalObjectivePercentage > 100
+                        ? "border-red-400/30 bg-red-400/10 text-red-400"
+                        : "border-amber-400/30 bg-amber-400/10 text-amber-300"
+                  }`}
+                >
+                  Mi objetivo:{" "}
+                  {formatPercentage(totalObjectivePercentage)}
+                </span>
+              </div>
+            </div>
 
-                            <p
-                              className={`mt-1 text-sm font-bold ${
-                                moneyDifference > 0
-                                  ? "text-red-400"
-                                  : "text-secondary"
-                              }`}
-                            >
-                              Desvío:{" "}
-                              {moneyDifference > 0
-                                ? `+${formatMoney(
-                                    selectedCurrency,
-                                    moneyDifference
-                                  )}`
-                                : formatMoney(
-                                    selectedCurrency,
-                                    moneyDifference
-                                  )}
+            {loading ? (
+              <p className="mt-8 text-textSecondary">
+                Cargando presupuesto...
+              </p>
+            ) : categories.length === 0 ? (
+              <p className="mt-8 text-textSecondary">
+                No se encontraron las partidas oficiales de Smart
+                Capital.
+              </p>
+            ) : (
+              <div className="mt-8 overflow-x-auto">
+                <div className="min-w-[880px]">
+                  <div className="grid grid-cols-[1.35fr_1fr_1fr_1fr] gap-3 border-b border-white/10 px-4 pb-4">
+                    <p className="text-sm font-bold text-textSecondary">
+                      Partida
+                    </p>
+
+                    <p className="text-center text-sm font-bold text-primary">
+                      Smart Capital
+                    </p>
+
+                    <p className="text-center text-sm font-bold text-secondary">
+                      Estado actual
+                    </p>
+
+                    <p className="text-center text-sm font-bold text-white">
+                      Mi objetivo
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-white/10">
+                    {categories.map((category) => {
+                      const config = getCategoryConfig(
+                        category.name
+                      )
+
+                      const suggestedPercentage =
+                        config?.suggestedPercentage || 0
+
+                      const currentAmount =
+                        getCategoryCurrentAmount(category.id)
+
+                      const currentPercentage =
+                        getCurrentPercentage(category.id)
+
+                      const objectivePercentage =
+                        getObjectivePercentage(category.id)
+
+                      const suggestedAmount =
+                        totalIncome > 0
+                          ? (totalIncome *
+                              suggestedPercentage) /
+                            100
+                          : 0
+
+                      const objectiveAmount =
+                        totalIncome > 0
+                          ? (totalIncome *
+                              objectivePercentage) /
+                            100
+                          : 0
+
+                      const difference =
+                        currentPercentage -
+                        objectivePercentage
+
+                      const isSaving =
+                        savingCategoryId === category.id
+
+                      return (
+                        <article
+                          key={category.id}
+                          className="grid grid-cols-[1.35fr_1fr_1fr_1fr] gap-3 px-4 py-5"
+                        >
+                          <div className="pr-4">
+                            <h3 className="font-bold text-white">
+                              {category.name}
+                            </h3>
+
+                            <p className="mt-1 text-xs leading-relaxed text-textSecondary">
+                              {config?.description}
                             </p>
                           </div>
 
-                          <span
-                            className={`w-fit rounded-full px-4 py-2 text-sm font-bold ${
+                          <div className="flex flex-col items-center justify-center rounded-2xl border border-primary/20 bg-primary/5 p-4 text-center">
+                            <p className="text-2xl font-bold text-primary">
+                              {formatPercentage(
+                                suggestedPercentage
+                              )}
+                            </p>
+
+                            <p className="mt-2 break-words text-xs text-textSecondary">
+                              {formatMoney(
+                                selectedCurrency,
+                                suggestedAmount
+                              )}
+                            </p>
+                          </div>
+
+                          <div
+                            className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center ${
                               difference > 5
-                                ? "bg-red-500/10 text-red-400"
-                                : difference >= -5
-                                ? "bg-secondary/10 text-secondary"
-                                : "bg-primary/10 text-primary"
+                                ? "border-red-400/30 bg-red-400/5"
+                                : Math.abs(difference) <= 5
+                                  ? "border-secondary/30 bg-secondary/5"
+                                  : "border-primary/20 bg-primary/5"
                             }`}
                           >
-                            {difference > 0 ? `+${difference}%` : `${difference}%`}
-                          </span>
-                        </div>
+                            <p
+                              className={`text-2xl font-bold ${
+                                difference > 5
+                                  ? "text-red-400"
+                                  : Math.abs(difference) <= 5
+                                    ? "text-secondary"
+                                    : "text-primary"
+                              }`}
+                            >
+                              {formatPercentage(
+                                currentPercentage
+                              )}
+                            </p>
 
-                        <div className="mt-4 h-3 rounded-full bg-card">
-                          <div
-                            className={`h-3 rounded-full ${
-                              difference > 5
-                                ? "bg-red-400"
-                                : difference >= -5
-                                ? "bg-secondary"
-                                : "bg-primary"
-                            }`}
-                            style={{
-                              width: `${Math.min(real, 100)}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
+                            <p className="mt-2 break-words text-xs text-textSecondary">
+                              {formatMoney(
+                                selectedCurrency,
+                                currentAmount
+                              )}
+                            </p>
+
+                            <p
+                              className={`mt-2 text-xs font-bold ${
+                                difference > 0
+                                  ? "text-red-400"
+                                  : difference < 0
+                                    ? "text-primary"
+                                    : "text-secondary"
+                              }`}
+                            >
+                              {difference > 0
+                                ? `+${formatPercentage(
+                                    difference
+                                  )} sobre mi objetivo`
+                                : difference < 0
+                                  ? `${formatPercentage(
+                                      Math.abs(difference)
+                                    )} debajo de mi objetivo`
+                                  : "Alineado con mi objetivo"}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-input p-4">
+                            <div className="flex w-full items-center gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={
+                                  objectiveDrafts[
+                                    category.id
+                                  ] ?? "0"
+                                }
+                                onChange={(event) => {
+                                  const value =
+                                    event.target.value
+
+                                  setObjectiveDrafts(
+                                    (current) => ({
+                                      ...current,
+                                      [category.id]: value,
+                                    })
+                                  )
+                                }}
+                                onBlur={(event) =>
+                                  void saveObjectivePercentage(
+                                    category.id,
+                                    Number(
+                                      event.target.value || 0
+                                    )
+                                  )
+                                }
+                                disabled={isSaving}
+                                className="w-full rounded-xl border border-white/10 bg-card px-3 py-3 text-center text-lg font-bold text-white outline-none focus:border-primary/60 disabled:opacity-50"
+                              />
+
+                              <span className="font-bold text-textSecondary">
+                                %
+                              </span>
+                            </div>
+
+                            <p className="mt-3 break-words text-center text-xs text-textSecondary">
+                              {formatMoney(
+                                selectedCurrency,
+                                objectiveAmount
+                              )}
+                            </p>
+
+                            {isSaving && (
+                              <p className="mt-2 text-xs font-bold text-primary">
+                                Guardando...
+                              </p>
+                            )}
+                          </div>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+          </section>
+
+          <section className="mt-6 grid gap-4 lg:grid-cols-3">
+            {categories
+              .map((category) => {
+                const current =
+                  getCurrentPercentage(category.id)
+                const objective =
+                  getObjectivePercentage(category.id)
+                const difference = current - objective
+
+                return {
+                  category,
+                  current,
+                  objective,
+                  difference,
+                }
+              })
+              .sort(
+                (first, second) =>
+                  Math.abs(second.difference) -
+                  Math.abs(first.difference)
+              )
+              .slice(0, 3)
+              .map(
+                ({
+                  category,
+                  current,
+                  objective,
+                  difference,
+                }) => (
+                  <article
+                    key={category.id}
+                    className={`rounded-3xl border p-5 lg:p-6 ${
+                      difference > 5
+                        ? "border-red-400/30 bg-red-400/5"
+                        : difference < -5
+                          ? "border-primary/20 bg-primary/5"
+                          : "border-secondary/20 bg-secondary/5"
+                    }`}
+                  >
+                    <p className="text-sm font-bold uppercase tracking-wider text-textSecondary">
+                      Análisis
+                    </p>
+
+                    <h3 className="mt-2 text-lg font-bold">
+                      {category.name}
+                    </h3>
+
+                    <p className="mt-3 text-sm leading-relaxed text-textSecondary">
+                      {totalIncome <= 0
+                        ? "Registra ingresos para activar el análisis de esta partida."
+                        : difference > 5
+                          ? `Tu estado actual es ${formatPercentage(
+                              current
+                            )}, por encima de tu objetivo de ${formatPercentage(
+                              objective
+                            )}. Conviene revisar esta partida.`
+                          : difference < -5
+                            ? `Tu estado actual es ${formatPercentage(
+                                current
+                              )}, por debajo de tu objetivo de ${formatPercentage(
+                                objective
+                              )}. Verifica si deseas reasignar ese margen.`
+                            : `Tu estado actual está alineado con el objetivo definido para esta partida.`}
+                    </p>
+                  </article>
+                )
+              )}
+          </section>
         </main>
       </div>
     </div>

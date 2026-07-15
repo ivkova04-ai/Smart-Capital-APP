@@ -1,8 +1,53 @@
- import { useEffect, useState } from "react"
+ import { useEffect, useMemo, useState } from "react"
 import Sidebar from "../components/Sidebar"
 import { supabase } from "../lib/supabase"
 
 type MovementType = "gasto" | "ingreso" | "inversion" | "abono_deuda"
+
+type Category = {
+  id: string
+  user_id: string
+  name: string
+  created_at?: string
+}
+
+type Subcategory = {
+  id: string
+  user_id: string
+  category_id: string
+  name: string
+  created_at?: string
+}
+
+const MASTER_CATEGORY_NAMES = [
+  "Ingreso",
+  "Supervivencia",
+  "Educación",
+  "Lujos",
+  "Gastos Hormiga",
+  "Donativos",
+  "Deuda",
+  "Ahorro e Inversión",
+] as const
+
+const EXPENSE_CATEGORY_NAMES = [
+  "Supervivencia",
+  "Educación",
+  "Lujos",
+  "Gastos Hormiga",
+  "Donativos",
+] as const
+
+const CATEGORY_ORDER = new Map(
+  MASTER_CATEGORY_NAMES.map((name, index) => [
+    name.toLocaleLowerCase("es"),
+    index,
+  ])
+)
+
+function normalizeName(value?: string | null) {
+  return (value || "").trim().toLocaleLowerCase("es")
+}
 
 function Movements() {
   const today = new Date().toLocaleDateString("en-CA")
@@ -13,8 +58,12 @@ function Movements() {
 
   const currentDate = new Date()
 
-  const [filterMonth, setFilterMonth] = useState(currentDate.getMonth() + 1)
-  const [filterYear, setFilterYear] = useState(currentDate.getFullYear())
+  const [filterMonth, setFilterMonth] = useState(
+    currentDate.getMonth() + 1
+  )
+  const [filterYear, setFilterYear] = useState(
+    currentDate.getFullYear()
+  )
   const [showHistorical, setShowHistorical] = useState(false)
   const [filterType, setFilterType] = useState("todos")
   const [filterCurrency, setFilterCurrency] = useState("todas")
@@ -29,14 +78,18 @@ function Movements() {
   const [amount, setAmount] = useState("")
   const [date, setDate] = useState(today)
   const [description, setDescription] = useState("")
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("")
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState("")
 
-  const [categories, setCategories] = useState<any[]>([])
-  const [subcategories, setSubcategories] = useState<any[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [subcategories, setSubcategories] = useState<Subcategory[]>(
+    []
+  )
   const [paymentMethods, setPaymentMethods] = useState<any[]>([])
   const [investments, setInvestments] = useState<any[]>([])
   const [liabilities, setLiabilities] = useState<any[]>([])
   const [movements, setMovements] = useState<any[]>([])
+  const [saving, setSaving] = useState(false)
 
   const [selectedCategory, setSelectedCategory] = useState("")
   const [selectedSubcategory, setSelectedSubcategory] = useState("")
@@ -44,15 +97,11 @@ function Movements() {
   const [selectedLiability, setSelectedLiability] = useState("")
 
   useEffect(() => {
-    fetchCategories()
-    fetchSubcategories()
-    fetchPaymentMethods()
-    fetchInvestments()
-    fetchLiabilities()
+    void initializePage()
   }, [])
 
   useEffect(() => {
-    fetchMovements()
+    void fetchMovements()
   }, [
     filterMonth,
     filterYear,
@@ -64,39 +113,26 @@ function Movements() {
     filterPaymentMethod,
   ])
 
-  useEffect(() => {
-    if (type === "ingreso") {
-      const incomeCategory = categories.find(
-        (category) => category.name.toLowerCase() === "ingreso"
-      )
-
-      if (incomeCategory) {
-        setSelectedCategory(incomeCategory.id)
-        setSelectedSubcategory("")
-      }
-    }
-
-    if (type === "gasto") {
-      const selected = categories.find(
-        (category) => category.id === selectedCategory
-      )
-
-      if (selected?.name?.toLowerCase() === "ingreso") {
-        setSelectedCategory("")
-        setSelectedSubcategory("")
-      }
-    }
-
-    if (type === "inversion" || type === "abono_deuda") {
-      setSelectedCategory("")
-      setSelectedSubcategory("")
-    }
-  }, [type, categories])
+  async function initializePage() {
+    await Promise.all([
+      fetchCategories(),
+      fetchSubcategories(),
+      fetchPaymentMethods(),
+      fetchInvestments(),
+      fetchLiabilities(),
+    ])
+  }
 
   async function getUser() {
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error(error)
+      return null
+    }
 
     return user
   }
@@ -109,7 +145,6 @@ function Movements() {
       .from("categories")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
 
     if (error) {
       alert(error.message)
@@ -127,6 +162,7 @@ function Movements() {
       .from("subcategories")
       .select("*")
       .eq("user_id", user.id)
+      .order("name", { ascending: true })
 
     if (error) {
       alert(error.message)
@@ -206,21 +242,50 @@ function Movements() {
       `)
       .eq("user_id", user.id)
       .order("movement_date", { ascending: false })
+      .order("created_at", { ascending: false })
 
     if (!showHistorical) {
-      const startDate = `${filterYear}-${String(filterMonth).padStart(2, "0")}-01`
-      const nextMonth = filterMonth === 12 ? 1 : filterMonth + 1
-      const nextYear = filterMonth === 12 ? filterYear + 1 : filterYear
-      const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`
+      const startDate = `${filterYear}-${String(filterMonth).padStart(
+        2,
+        "0"
+      )}-01`
 
-      query = query.gte("movement_date", startDate).lt("movement_date", endDate)
+      const nextMonth = filterMonth === 12 ? 1 : filterMonth + 1
+      const nextYear =
+        filterMonth === 12 ? filterYear + 1 : filterYear
+
+      const endDate = `${nextYear}-${String(nextMonth).padStart(
+        2,
+        "0"
+      )}-01`
+
+      query = query
+        .gte("movement_date", startDate)
+        .lt("movement_date", endDate)
     }
 
-    if (filterType !== "todos") query = query.eq("type", filterType)
-    if (filterCurrency !== "todas") query = query.eq("currency", filterCurrency)
-    if (filterCategory) query = query.eq("category_id", filterCategory)
-    if (filterSubcategory) query = query.eq("subcategory_id", filterSubcategory)
-    if (filterPaymentMethod) query = query.eq("payment_method_id", filterPaymentMethod)
+    if (filterType !== "todos") {
+      query = query.eq("type", filterType)
+    }
+
+    if (filterCurrency !== "todas") {
+      query = query.eq("currency", filterCurrency)
+    }
+
+    if (filterCategory) {
+      query = query.eq("category_id", filterCategory)
+    }
+
+    if (filterSubcategory) {
+      query = query.eq("subcategory_id", filterSubcategory)
+    }
+
+    if (filterPaymentMethod) {
+      query = query.eq(
+        "payment_method_id",
+        filterPaymentMethod
+      )
+    }
 
     const { data, error } = await query
 
@@ -232,20 +297,60 @@ function Movements() {
     setMovements(data || [])
   }
 
-  const incomeCategory = categories.find(
-    (category) => category.name.toLowerCase() === "ingreso"
+  const orderedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const firstOrder =
+        CATEGORY_ORDER.get(normalizeName(a.name)) ?? 999
+      const secondOrder =
+        CATEGORY_ORDER.get(normalizeName(b.name)) ?? 999
+
+      if (firstOrder !== secondOrder) {
+        return firstOrder - secondOrder
+      }
+
+      return a.name.localeCompare(b.name, "es")
+    })
+  }, [categories])
+
+  function findCategoryByName(name: string) {
+    return categories.find(
+      (category) =>
+        normalizeName(category.name) === normalizeName(name)
+    )
+  }
+
+  const incomeCategory = findCategoryByName("Ingreso")
+  const debtCategory = findCategoryByName("Deuda")
+  const investmentCategory = findCategoryByName(
+    "Ahorro e Inversión"
   )
 
-  const expenseCategories = categories.filter(
-    (category) => category.name.toLowerCase() !== "ingreso"
-  )
+  const expenseCategories = useMemo(() => {
+    return orderedCategories.filter((category) =>
+      EXPENSE_CATEGORY_NAMES.some(
+        (name) =>
+          normalizeName(name) === normalizeName(category.name)
+      )
+    )
+  }, [orderedCategories])
+
+  const masterCategories = useMemo(() => {
+    return orderedCategories.filter((category) =>
+      MASTER_CATEGORY_NAMES.some(
+        (name) =>
+          normalizeName(name) === normalizeName(category.name)
+      )
+    )
+  }, [orderedCategories])
 
   const visibleCategories =
     type === "ingreso"
       ? incomeCategory
         ? [incomeCategory]
         : []
-      : expenseCategories
+      : type === "gasto"
+        ? expenseCategories
+        : []
 
   const filterCategories =
     filterType === "ingreso"
@@ -253,18 +358,82 @@ function Movements() {
         ? [incomeCategory]
         : []
       : filterType === "gasto"
-      ? expenseCategories
-      : categories
+        ? expenseCategories
+        : filterType === "inversion"
+          ? investmentCategory
+            ? [investmentCategory]
+            : []
+          : filterType === "abono_deuda"
+            ? debtCategory
+              ? [debtCategory]
+              : []
+            : orderedCategories
 
   const formSubcategories = subcategories.filter(
-    (sub) => sub.category_id === selectedCategory
+    (subcategory) =>
+      subcategory.category_id === selectedCategory
   )
 
   const filterSubcategories = subcategories.filter(
-    (sub) => sub.category_id === filterCategory
+    (subcategory) =>
+      subcategory.category_id === filterCategory
   )
 
-  const finalCurrency = currency === "custom" ? customCurrency.trim() : currency
+  const finalCurrency =
+    currency === "custom" ? customCurrency.trim() : currency
+
+  useEffect(() => {
+    if (type === "ingreso") {
+      setSelectedCategory(incomeCategory?.id || "")
+      setSelectedSubcategory("")
+      setSelectedInvestment("")
+      setSelectedLiability("")
+      setSelectedPaymentMethod("")
+      return
+    }
+
+    if (type === "inversion") {
+      setSelectedCategory(investmentCategory?.id || "")
+      setSelectedSubcategory("")
+      setSelectedLiability("")
+      return
+    }
+
+    if (type === "abono_deuda") {
+      setSelectedCategory(debtCategory?.id || "")
+      setSelectedSubcategory("")
+      setSelectedInvestment("")
+      return
+    }
+
+    if (type === "gasto") {
+      const selected = categories.find(
+        (category) => category.id === selectedCategory
+      )
+
+      const isValidExpenseCategory =
+        selected &&
+        EXPENSE_CATEGORY_NAMES.some(
+          (name) =>
+            normalizeName(name) ===
+            normalizeName(selected.name)
+        )
+
+      if (!isValidExpenseCategory) {
+        setSelectedCategory("")
+        setSelectedSubcategory("")
+      }
+
+      setSelectedInvestment("")
+      setSelectedLiability("")
+    }
+  }, [
+    type,
+    categories,
+    incomeCategory?.id,
+    investmentCategory?.id,
+    debtCategory?.id,
+  ])
 
   function getTypeLabel(value: string) {
     if (value === "ingreso") return "Ingreso"
@@ -277,18 +446,42 @@ function Movements() {
   function getPaymentLabel(method: any) {
     if (!method) return ""
 
-    if (method.type === "efectivo") return "Efectivo"
+    if (method.type === "efectivo") {
+      return "Efectivo"
+    }
 
-    return `${method.bank || ""} ${method.brand || ""} ${
+    const label = `${method.bank || ""} ${
+      method.brand || ""
+    } ${
       method.type === "debito" ? "Débito" : "Crédito"
     }`
+
+    return label.replace(/\s+/g, " ").trim()
   }
 
-  async function updateCreditCardBalance(paymentMethodId: string, delta: number) {
-    if (!paymentMethodId || delta === 0) return
+  function formatMoney(
+    value: number | string,
+    movementCurrency: string
+  ) {
+    const numericValue = Number(value || 0)
+
+    return `${movementCurrency}${numericValue.toLocaleString(
+      "es-CR",
+      {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }
+    )}`
+  }
+
+  async function updateCreditCardBalance(
+    paymentMethodId: string,
+    delta: number
+  ) {
+    if (!paymentMethodId || delta === 0) return true
 
     const user = await getUser()
-    if (!user) return
+    if (!user) return false
 
     const { data: method, error } = await supabase
       .from("payment_methods")
@@ -297,22 +490,42 @@ function Movements() {
       .eq("user_id", user.id)
       .single()
 
-    if (error || !method || method.type !== "credito") return
+    if (error) {
+      console.error(error)
+      return false
+    }
 
-    const newBalance = Math.max(Number(method.current_balance || 0) + delta, 0)
+    if (!method || method.type !== "credito") {
+      return true
+    }
 
-    await supabase
+    const newBalance = Math.max(
+      Number(method.current_balance || 0) + delta,
+      0
+    )
+
+    const { error: updateError } = await supabase
       .from("payment_methods")
       .update({ current_balance: newBalance })
       .eq("id", paymentMethodId)
       .eq("user_id", user.id)
+
+    if (updateError) {
+      console.error(updateError)
+      return false
+    }
+
+    return true
   }
 
-  async function updateInvestmentBalance(investmentId: string, delta: number) {
-    if (!investmentId || delta === 0) return
+  async function updateInvestmentBalance(
+    investmentId: string,
+    delta: number
+  ) {
+    if (!investmentId || delta === 0) return true
 
     const user = await getUser()
-    if (!user) return
+    if (!user) return false
 
     const { data: investment, error } = await supabase
       .from("investments")
@@ -321,7 +534,10 @@ function Movements() {
       .eq("user_id", user.id)
       .single()
 
-    if (error || !investment) return
+    if (error || !investment) {
+      console.error(error)
+      return false
+    }
 
     const newAmountInvested = Math.max(
       Number(investment.amount_invested || 0) + delta,
@@ -333,7 +549,7 @@ function Movements() {
       0
     )
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("investments")
       .update({
         amount_invested: newAmountInvested,
@@ -341,13 +557,23 @@ function Movements() {
       })
       .eq("id", investmentId)
       .eq("user_id", user.id)
+
+    if (updateError) {
+      console.error(updateError)
+      return false
+    }
+
+    return true
   }
 
-  async function updateLiabilityBalance(liabilityId: string, delta: number) {
-    if (!liabilityId || delta === 0) return
+  async function updateLiabilityBalance(
+    liabilityId: string,
+    delta: number
+  ) {
+    if (!liabilityId || delta === 0) return true
 
     const user = await getUser()
-    if (!user) return
+    if (!user) return false
 
     const { data: liability, error } = await supabase
       .from("liabilities")
@@ -356,38 +582,80 @@ function Movements() {
       .eq("user_id", user.id)
       .single()
 
-    if (error || !liability) return
+    if (error || !liability) {
+      console.error(error)
+      return false
+    }
 
-    const newAmount = Math.max(Number(liability.amount || 0) + delta, 0)
+    const newAmount = Math.max(
+      Number(liability.amount || 0) + delta,
+      0
+    )
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("liabilities")
       .update({ amount: newAmount })
       .eq("id", liabilityId)
       .eq("user_id", user.id)
+
+    if (updateError) {
+      console.error(updateError)
+      return false
+    }
+
+    return true
   }
 
-  async function applyMovementEffects(movement: any, direction: 1 | -1) {
+  async function applyMovementEffects(
+    movement: any,
+    direction: 1 | -1
+  ) {
     const value = Number(movement.amount || 0)
 
-    if (movement.type === "gasto" && movement.payment_method_id) {
-      await updateCreditCardBalance(
+    if (
+      movement.type === "gasto" &&
+      movement.payment_method_id
+    ) {
+      const success = await updateCreditCardBalance(
         movement.payment_method_id,
         value * direction
       )
+
+      if (!success) return false
     }
 
-    if (movement.type === "inversion" && movement.investment_id) {
-      await updateInvestmentBalance(movement.investment_id, value * direction)
+    if (
+      movement.type === "inversion" &&
+      movement.investment_id
+    ) {
+      const success = await updateInvestmentBalance(
+        movement.investment_id,
+        value * direction
+      )
+
+      if (!success) return false
     }
-if (movement.type === "abono_deuda" && movement.liability_id) {
-  await updateLiabilityBalance(movement.liability_id, -value * direction)
-}
+
+    if (
+      movement.type === "abono_deuda" &&
+      movement.liability_id
+    ) {
+      const success = await updateLiabilityBalance(
+        movement.liability_id,
+        -value * direction
+      )
+
+      if (!success) return false
+    }
+
+    return true
   }
 
   async function saveMovement() {
-    if (!amount || !date) {
-      alert("Completa monto y fecha.")
+    const numericAmount = Number(amount)
+
+    if (!numericAmount || numericAmount <= 0 || !date) {
+      alert("Completa un monto mayor que cero y una fecha.")
       return
     }
 
@@ -409,7 +677,10 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
       return
     }
 
-    if (type === "abono_deuda" && !selectedLiability) {
+    if (
+      type === "abono_deuda" &&
+      !selectedLiability
+    ) {
       alert("Debes seleccionar una deuda.")
       return
     }
@@ -420,17 +691,89 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
     if (
       type === "ingreso" &&
-      selectedCategoryData?.name?.toLowerCase() !== "ingreso"
+      normalizeName(selectedCategoryData?.name) !==
+        normalizeName("Ingreso")
     ) {
-      alert("Los ingresos solo pueden registrarse en la partida Ingreso.")
+      alert(
+        "Los ingresos solo pueden registrarse en la partida Ingreso."
+      )
       return
     }
 
     if (
       type === "gasto" &&
-      selectedCategoryData?.name?.toLowerCase() === "ingreso"
+      !EXPENSE_CATEGORY_NAMES.some(
+        (name) =>
+          normalizeName(name) ===
+          normalizeName(selectedCategoryData?.name)
+      )
     ) {
-      alert("Los gastos no pueden registrarse en la partida Ingreso.")
+      alert(
+        "Selecciona una de las partidas oficiales disponibles para gastos."
+      )
+      return
+    }
+
+    if (
+      type === "inversion" &&
+      normalizeName(selectedCategoryData?.name) !==
+        normalizeName("Ahorro e Inversión")
+    ) {
+      alert(
+        "La partida Ahorro e Inversión no está disponible. Revisa la sección Partidas."
+      )
+      return
+    }
+
+    if (
+      type === "abono_deuda" &&
+      normalizeName(selectedCategoryData?.name) !==
+        normalizeName("Deuda")
+    ) {
+      alert(
+        "La partida Deuda no está disponible. Revisa la sección Partidas."
+      )
+      return
+    }
+
+    const selectedInvestmentData = investments.find(
+      (investment) => investment.id === selectedInvestment
+    )
+
+    if (
+      type === "inversion" &&
+      selectedInvestmentData?.currency &&
+      selectedInvestmentData.currency !== finalCurrency
+    ) {
+      alert(
+        `La inversión seleccionada está registrada en ${selectedInvestmentData.currency}. Usa la misma moneda.`
+      )
+      return
+    }
+
+    const selectedLiabilityData = liabilities.find(
+      (liability) => liability.id === selectedLiability
+    )
+
+    if (
+      type === "abono_deuda" &&
+      selectedLiabilityData?.currency &&
+      selectedLiabilityData.currency !== finalCurrency
+    ) {
+      alert(
+        `La deuda seleccionada está registrada en ${selectedLiabilityData.currency}. Usa la misma moneda.`
+      )
+      return
+    }
+
+    if (
+      type === "abono_deuda" &&
+      numericAmount >
+        Number(selectedLiabilityData?.amount || 0)
+    ) {
+      alert(
+        "El abono no puede ser mayor que el saldo pendiente de la deuda."
+      )
       return
     }
 
@@ -441,91 +784,192 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
       user_id: user.id,
       type,
       currency: finalCurrency,
-      amount: Number(amount),
+      amount: numericAmount,
       movement_date: date,
-      category_id:
-        type === "ingreso" || type === "gasto" ? selectedCategory : null,
+      category_id: selectedCategory || null,
       subcategory_id:
-        type === "ingreso" || type === "gasto" ? selectedSubcategory : null,
-      payment_method_id: selectedPaymentMethod || null,
-      investment_id: type === "inversion" ? selectedInvestment : null,
-      liability_id: type === "abono_deuda" ? selectedLiability : null,
-      description: description || null,
+        type === "ingreso" || type === "gasto"
+          ? selectedSubcategory
+          : null,
+      payment_method_id:
+        type === "ingreso"
+          ? null
+          : selectedPaymentMethod || null,
+      investment_id:
+        type === "inversion" ? selectedInvestment : null,
+      liability_id:
+        type === "abono_deuda" ? selectedLiability : null,
+      description: description.trim() || null,
     }
 
+    setSaving(true)
+
     if (editingId) {
-      const { data: oldMovement, error: oldError } = await supabase
-        .from("movements")
-        .select("*")
-        .eq("id", editingId)
-        .eq("user_id", user.id)
-        .single()
+      const { data: oldMovement, error: oldError } =
+        await supabase
+          .from("movements")
+          .select("*")
+          .eq("id", editingId)
+          .eq("user_id", user.id)
+          .single()
 
       if (oldError) {
+        setSaving(false)
         alert(oldError.message)
         return
       }
 
-      await applyMovementEffects(oldMovement, -1)
+      const reverted = await applyMovementEffects(
+        oldMovement,
+        -1
+      )
 
-      const { error } = await supabase
+      if (!reverted) {
+        setSaving(false)
+        alert(
+          "No se pudieron revertir los efectos del movimiento anterior."
+        )
+        return
+      }
+
+      const { error: updateError } = await supabase
         .from("movements")
         .update(movementData)
         .eq("id", editingId)
         .eq("user_id", user.id)
 
-      if (error) {
+      if (updateError) {
         await applyMovementEffects(oldMovement, 1)
-        alert(error.message)
+        setSaving(false)
+        alert(updateError.message)
         return
       }
 
-      await applyMovementEffects(movementData, 1)
+      const applied = await applyMovementEffects(
+        movementData,
+        1
+      )
+
+      if (!applied) {
+        await supabase
+          .from("movements")
+          .update(oldMovement)
+          .eq("id", editingId)
+          .eq("user_id", user.id)
+
+        await applyMovementEffects(oldMovement, 1)
+
+        setSaving(false)
+        alert(
+          "No se pudieron aplicar los efectos financieros del nuevo movimiento."
+        )
+        return
+      }
     } else {
-      const { error } = await supabase.from("movements").insert(movementData)
+      const { data: createdMovement, error: insertError } =
+        await supabase
+          .from("movements")
+          .insert(movementData)
+          .select()
+          .single()
 
-      if (error) {
-        alert(error.message)
+      if (insertError) {
+        setSaving(false)
+        alert(insertError.message)
         return
       }
 
-      await applyMovementEffects(movementData, 1)
+      const applied = await applyMovementEffects(
+        createdMovement,
+        1
+      )
+
+      if (!applied) {
+        await supabase
+          .from("movements")
+          .delete()
+          .eq("id", createdMovement.id)
+          .eq("user_id", user.id)
+
+        setSaving(false)
+        alert(
+          "El movimiento no se guardó porque no fue posible actualizar sus efectos financieros."
+        )
+        return
+      }
     }
 
-    await fetchPaymentMethods()
-    await fetchInvestments()
-    await fetchLiabilities()
-    await fetchMovements()
+    await Promise.all([
+      fetchPaymentMethods(),
+      fetchInvestments(),
+      fetchLiabilities(),
+      fetchMovements(),
+    ])
+
+    const wasEditing = Boolean(editingId)
+
     resetForm()
+    setSaving(false)
 
     alert(
-      editingId
+      wasEditing
         ? "Movimiento actualizado correctamente."
         : "Movimiento guardado correctamente."
     )
   }
-
-  function editMovement(movement: any) {
+    function editMovement(movement: any) {
     setEditingId(movement.id)
 
-    setType(
+    const movementType: MovementType =
       movement.type === "ingreso"
         ? "ingreso"
         : movement.type === "inversion"
-        ? "inversion"
-        : movement.type === "abono_deuda"
-        ? "abono_deuda"
-        : "gasto"
-    )
+          ? "inversion"
+          : movement.type === "abono_deuda"
+            ? "abono_deuda"
+            : "gasto"
 
+    setType(movementType)
     setAmount(String(movement.amount))
     setDate(movement.movement_date)
     setDescription(movement.description || "")
-    setSelectedCategory(movement.category_id || "")
-    setSelectedSubcategory(movement.subcategory_id || "")
     setSelectedPaymentMethod(movement.payment_method_id || "")
     setSelectedInvestment(movement.investment_id || "")
     setSelectedLiability(movement.liability_id || "")
+
+    if (movementType === "ingreso") {
+      setSelectedCategory(incomeCategory?.id || "")
+      setSelectedSubcategory(movement.subcategory_id || "")
+    } else if (movementType === "inversion") {
+      setSelectedCategory(investmentCategory?.id || "")
+      setSelectedSubcategory("")
+    } else if (movementType === "abono_deuda") {
+      setSelectedCategory(debtCategory?.id || "")
+      setSelectedSubcategory("")
+    } else {
+      const existingCategory = categories.find(
+        (category) => category.id === movement.category_id
+      )
+
+      const isOfficialExpenseCategory = EXPENSE_CATEGORY_NAMES.some(
+        (name) =>
+          normalizeName(name) === normalizeName(existingCategory?.name)
+      )
+
+      setSelectedCategory(
+        isOfficialExpenseCategory ? movement.category_id || "" : ""
+      )
+
+      setSelectedSubcategory(
+        isOfficialExpenseCategory ? movement.subcategory_id || "" : ""
+      )
+
+      if (!isOfficialExpenseCategory) {
+        alert(
+          "Este movimiento utiliza una partida anterior. Debes reclasificarlo antes de guardarlo."
+        )
+      }
+    }
 
     const defaultCurrencies = ["₡", "$", "€"]
 
@@ -541,7 +985,10 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
   }
 
   async function deleteMovement(id: string) {
-    const confirmDelete = confirm("¿Seguro que quieres eliminar este movimiento?")
+    const confirmDelete = confirm(
+      "¿Seguro que quieres eliminar este movimiento?"
+    )
+
     if (!confirmDelete) return
 
     const user = await getUser()
@@ -559,24 +1006,33 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
       return
     }
 
-    await applyMovementEffects(oldMovement, -1)
+    const reverted = await applyMovementEffects(oldMovement, -1)
 
-    const { error } = await supabase
+    if (!reverted) {
+      alert(
+        "No se pudieron revertir los efectos financieros del movimiento."
+      )
+      return
+    }
+
+    const { error: deleteError } = await supabase
       .from("movements")
       .delete()
       .eq("id", id)
       .eq("user_id", user.id)
 
-    if (error) {
+    if (deleteError) {
       await applyMovementEffects(oldMovement, 1)
-      alert(error.message)
+      alert(deleteError.message)
       return
     }
 
-    await fetchPaymentMethods()
-    await fetchInvestments()
-    await fetchLiabilities()
-    fetchMovements()
+    await Promise.all([
+      fetchPaymentMethods(),
+      fetchInvestments(),
+      fetchLiabilities(),
+      fetchMovements(),
+    ])
   }
 
   function resetForm() {
@@ -621,10 +1077,11 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
   ]
 
   const inputClass =
-    "w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
+    "w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60 disabled:cursor-not-allowed disabled:opacity-50"
 
   const labelClass = "mb-2 block text-sm text-textSecondary"
-    return (
+
+  return (
     <div className="min-h-screen bg-background text-white lg:flex">
       <Sidebar />
 
@@ -634,16 +1091,31 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
             Registrar <span className="text-primary">Movimiento</span>
           </h1>
 
-          <p className="text-sm text-textSecondary">
-            Registra ingresos, gastos, inversiones, abonos de deuda y medios de pago.
+          <p className="mt-1 text-sm text-textSecondary">
+            Registra ingresos, gastos, inversiones y abonos utilizando la
+            metodología de Smart Capital.
           </p>
         </header>
 
         <main className="p-4 lg:p-8">
-          <div className="w-full rounded-3xl border border-primary/20 bg-card p-4 lg:max-w-4xl lg:p-6">
-            <h2 className="text-xl font-bold">
-              {editingId ? "Editar movimiento" : "Nuevo movimiento"}
-            </h2>
+          <section className="w-full rounded-3xl border border-primary/20 bg-card p-4 lg:max-w-4xl lg:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold">
+                  {editingId ? "Editar movimiento" : "Nuevo movimiento"}
+                </h2>
+
+                <p className="mt-1 text-sm text-textSecondary">
+                  La partida se asignará según el tipo de movimiento.
+                </p>
+              </div>
+
+              {editingId && (
+                <span className="w-fit rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-bold text-amber-300">
+                  Modo edición
+                </span>
+              )}
+            </div>
 
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               <div>
@@ -651,13 +1123,18 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
                 <select
                   value={type}
-                  onChange={(e) => {
-                    const newType = e.target.value as MovementType
+                  onChange={(event) => {
+                    const newType = event.target.value as MovementType
+
                     setType(newType)
                     setSelectedCategory("")
                     setSelectedSubcategory("")
                     setSelectedInvestment("")
                     setSelectedLiability("")
+
+                    if (newType === "ingreso") {
+                      setSelectedPaymentMethod("")
+                    }
                   }}
                   className={inputClass}
                 >
@@ -673,7 +1150,7 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
                 <select
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
+                  onChange={(event) => setCurrency(event.target.value)}
                   className={inputClass}
                 >
                   <option value="₡">Colones ₡</option>
@@ -685,11 +1162,15 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
               {currency === "custom" && (
                 <div>
-                  <label className={labelClass}>Moneda personalizada</label>
+                  <label className={labelClass}>
+                    Moneda personalizada
+                  </label>
 
                   <input
                     value={customCurrency}
-                    onChange={(e) => setCustomCurrency(e.target.value)}
+                    onChange={(event) =>
+                      setCustomCurrency(event.target.value.toUpperCase())
+                    }
                     placeholder="Ej: COP, MXN"
                     className={inputClass}
                   />
@@ -701,8 +1182,10 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
                 <input
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(event) => setAmount(event.target.value)}
                   placeholder="Ej: 25000"
+                  min="0"
+                  step="0.01"
                   type="number"
                   className={inputClass}
                 />
@@ -714,7 +1197,7 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     value={date}
-                    onChange={(e) => setDate(e.target.value)}
+                    onChange={(event) => setDate(event.target.value)}
                     type="date"
                     className={inputClass}
                   />
@@ -744,10 +1227,11 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
                     <select
                       value={selectedCategory}
-                      onChange={(e) => {
-                        setSelectedCategory(e.target.value)
+                      onChange={(event) => {
+                        setSelectedCategory(event.target.value)
                         setSelectedSubcategory("")
                       }}
+                      disabled={type === "ingreso"}
                       className={inputClass}
                     >
                       <option value="">Selecciona una partida</option>
@@ -761,8 +1245,8 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
                     <p className="mt-2 text-xs text-textSecondary">
                       {type === "ingreso"
-                        ? "Para ingresos solo se usa la partida fija Ingreso."
-                        : "Para gastos se oculta la partida Ingreso."}
+                        ? "Ingreso se asigna automáticamente."
+                        : "Selecciona el propósito financiero principal del gasto."}
                     </p>
                   </div>
 
@@ -771,7 +1255,9 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
                     <select
                       value={selectedSubcategory}
-                      onChange={(e) => setSelectedSubcategory(e.target.value)}
+                      onChange={(event) =>
+                        setSelectedSubcategory(event.target.value)
+                      }
                       className={inputClass}
                       disabled={!selectedCategory}
                     >
@@ -783,49 +1269,91 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
                         </option>
                       ))}
                     </select>
+
+                    {selectedCategory &&
+                      formSubcategories.length === 0 && (
+                        <p className="mt-2 text-xs text-amber-300">
+                          Esta partida todavía no tiene subpartidas. Créala
+                          primero desde Partidas.
+                        </p>
+                      )}
                   </div>
                 </>
               )}
 
               {type === "inversion" && (
-                <div>
-                  <label className={labelClass}>Inversión</label>
+                <>
+                  <div>
+                    <label className={labelClass}>
+                      Partida automática
+                    </label>
 
-                  <select
-                    value={selectedInvestment}
-                    onChange={(e) => setSelectedInvestment(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Selecciona una inversión</option>
+                    <input
+                      value="Ahorro e Inversión"
+                      disabled
+                      className={inputClass}
+                    />
+                  </div>
 
-                    {investments.map((investment) => (
-                      <option key={investment.id} value={investment.id}>
-                        {investment.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div>
+                    <label className={labelClass}>Inversión</label>
+
+                    <select
+                      value={selectedInvestment}
+                      onChange={(event) =>
+                        setSelectedInvestment(event.target.value)
+                      }
+                      className={inputClass}
+                    >
+                      <option value="">Selecciona una inversión</option>
+
+                      {investments.map((investment) => (
+                        <option key={investment.id} value={investment.id}>
+                          {investment.name}
+                          {investment.currency
+                            ? ` · ${investment.currency}`
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
               )}
 
               {type === "abono_deuda" && (
-                <div>
-                  <label className={labelClass}>Deuda</label>
+                <>
+                  <div>
+                    <label className={labelClass}>
+                      Partida automática
+                    </label>
 
-                  <select
-                    value={selectedLiability}
-                    onChange={(e) => setSelectedLiability(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="">Selecciona una deuda</option>
+                    <input value="Deuda" disabled className={inputClass} />
+                  </div>
 
-                    {liabilities.map((liability) => (
-                      <option key={liability.id} value={liability.id}>
-                        {liability.name} ({liability.currency}
-                        {liability.amount})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div>
+                    <label className={labelClass}>Deuda</label>
+
+                    <select
+                      value={selectedLiability}
+                      onChange={(event) =>
+                        setSelectedLiability(event.target.value)
+                      }
+                      className={inputClass}
+                    >
+                      <option value="">Selecciona una deuda</option>
+
+                      {liabilities.map((liability) => (
+                        <option key={liability.id} value={liability.id}>
+                          {liability.name} ·{" "}
+                          {formatMoney(
+                            liability.amount,
+                            liability.currency
+                          )}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
               )}
 
               {(type === "gasto" ||
@@ -836,18 +1364,16 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
                   <select
                     value={selectedPaymentMethod}
-                    onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                    onChange={(event) =>
+                      setSelectedPaymentMethod(event.target.value)
+                    }
                     className={inputClass}
                   >
                     <option value="">Sin medio de pago</option>
 
                     {paymentMethods.map((method) => (
                       <option key={method.id} value={method.id}>
-                        {method.type === "efectivo"
-                          ? "Efectivo"
-                          : `${method.bank || ""} ${method.brand || ""} ${
-                              method.type === "debito" ? "Débito" : "Crédito"
-                            }`}
+                        {getPaymentLabel(method)}
                       </option>
                     ))}
                   </select>
@@ -860,32 +1386,40 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
               <textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ej: compra, pago recibido, inversión o abono de deuda..."
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Ej: compra semanal, pago recibido, inversión o abono..."
                 className="min-h-28 w-full rounded-xl border border-white/10 bg-input px-4 py-3 text-white outline-none focus:border-primary/60"
               />
             </div>
 
             <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <button
+                type="button"
                 onClick={saveMovement}
-                className="rounded-full bg-primary px-6 py-3 font-bold text-white"
+                disabled={saving}
+                className="rounded-full bg-primary px-6 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {editingId ? "Actualizar movimiento" : "Guardar movimiento"}
+                {saving
+                  ? "Guardando..."
+                  : editingId
+                    ? "Actualizar movimiento"
+                    : "Guardar movimiento"}
               </button>
 
               {editingId && (
                 <button
+                  type="button"
                   onClick={resetForm}
+                  disabled={saving}
                   className="rounded-full border border-white/10 px-6 py-3 font-bold text-white"
                 >
                   Cancelar edición
                 </button>
               )}
             </div>
-          </div>
+          </section>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
+          <section className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
             <h2 className="text-xl font-bold">Filtros</h2>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -893,7 +1427,9 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
                 <>
                   <select
                     value={filterMonth}
-                    onChange={(e) => setFilterMonth(Number(e.target.value))}
+                    onChange={(event) =>
+                      setFilterMonth(Number(event.target.value))
+                    }
                     className={inputClass}
                   >
                     {months.map((item) => (
@@ -905,7 +1441,9 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
                   <input
                     value={filterYear}
-                    onChange={(e) => setFilterYear(Number(e.target.value))}
+                    onChange={(event) =>
+                      setFilterYear(Number(event.target.value))
+                    }
                     type="number"
                     className={inputClass}
                   />
@@ -914,8 +1452,8 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
               <select
                 value={filterType}
-                onChange={(e) => {
-                  setFilterType(e.target.value)
+                onChange={(event) => {
+                  setFilterType(event.target.value)
                   setFilterCategory("")
                   setFilterSubcategory("")
                 }}
@@ -930,7 +1468,9 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
               <select
                 value={filterCurrency}
-                onChange={(e) => setFilterCurrency(e.target.value)}
+                onChange={(event) =>
+                  setFilterCurrency(event.target.value)
+                }
                 className={inputClass}
               >
                 <option value="todas">Todas las monedas</option>
@@ -941,8 +1481,8 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
               <select
                 value={filterCategory}
-                onChange={(e) => {
-                  setFilterCategory(e.target.value)
+                onChange={(event) => {
+                  setFilterCategory(event.target.value)
                   setFilterSubcategory("")
                 }}
                 className={inputClass}
@@ -952,6 +1492,12 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
                 {filterCategories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
+                    {!masterCategories.some(
+                      (masterCategory) =>
+                        masterCategory.id === category.id
+                    )
+                      ? " · anterior"
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -959,7 +1505,9 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
               {filterCategory && (
                 <select
                   value={filterSubcategory}
-                  onChange={(e) => setFilterSubcategory(e.target.value)}
+                  onChange={(event) =>
+                    setFilterSubcategory(event.target.value)
+                  }
                   className={inputClass}
                 >
                   <option value="">Todas las subpartidas</option>
@@ -974,18 +1522,16 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
               <select
                 value={filterPaymentMethod}
-                onChange={(e) => setFilterPaymentMethod(e.target.value)}
+                onChange={(event) =>
+                  setFilterPaymentMethod(event.target.value)
+                }
                 className={inputClass}
               >
                 <option value="">Todos los medios de pago</option>
 
                 {paymentMethods.map((method) => (
                   <option key={method.id} value={method.id}>
-                    {method.type === "efectivo"
-                      ? "Efectivo"
-                      : `${method.bank || ""} ${method.brand || ""} ${
-                          method.type === "debito" ? "Débito" : "Crédito"
-                        }`}
+                    {getPaymentLabel(method)}
                   </option>
                 ))}
               </select>
@@ -993,6 +1539,7 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 
             <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
               <button
+                type="button"
                 onClick={() => setShowHistorical(!showHistorical)}
                 className={`rounded-full px-6 py-3 font-bold ${
                   showHistorical
@@ -1000,20 +1547,33 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
                     : "border border-primary/40 text-primary"
                 }`}
               >
-                {showHistorical ? "Volver a mes/año" : "Histórico total"}
+                {showHistorical
+                  ? "Volver a mes/año"
+                  : "Histórico total"}
               </button>
 
               <button
+                type="button"
                 onClick={clearFilters}
                 className="rounded-full border border-white/10 px-6 py-3 font-bold text-white"
               >
                 Limpiar filtros
               </button>
             </div>
-          </div>
+          </section>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
-            <h2 className="text-xl font-bold">Movimientos guardados</h2>
+          <section className="mt-8 rounded-3xl border border-white/10 bg-card p-4 lg:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold">
+                  Movimientos guardados
+                </h2>
+
+                <p className="mt-1 text-sm text-textSecondary">
+                  {movements.length} movimientos encontrados
+                </p>
+              </div>
+            </div>
 
             <div className="mt-6 space-y-4">
               {movements.length === 0 ? (
@@ -1022,62 +1582,80 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
                 </p>
               ) : (
                 movements.map((movement) => (
-                  <div
+                  <article
                     key={movement.id}
                     className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-input p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5"
                   >
-                    <div>
-                      <p className="font-bold">
+                    <div className="min-w-0">
+                      <p className="break-words font-bold">
                         {getTypeLabel(movement.type)}
-                        {movement.categories &&
-                          ` · ${movement.categories?.name} / ${movement.subcategories?.name}`}
+
+                        {movement.categories?.name &&
+                          ` · ${movement.categories.name}`}
+
+                        {movement.subcategories?.name &&
+                          ` / ${movement.subcategories.name}`}
                       </p>
 
-                      <p className="text-sm text-textSecondary/70">
+                      <p className="mt-1 text-sm text-textSecondary/70">
                         {movement.movement_date}
                       </p>
 
                       {movement.investments && (
-                        <p className="mt-1 text-sm text-primary">
+                        <p className="mt-1 break-words text-sm text-primary">
                           Inversión: {movement.investments.name}
                         </p>
                       )}
 
                       {movement.liabilities && (
-                        <p className="mt-1 text-sm text-red-400">
+                        <p className="mt-1 break-words text-sm text-red-400">
                           Deuda: {movement.liabilities.name}
                         </p>
                       )}
 
                       {movement.payment_methods && (
-                        <p className="mt-1 text-sm text-primary">
+                        <p className="mt-1 break-words text-sm text-primary">
                           Medio de pago:{" "}
                           {getPaymentLabel(movement.payment_methods)}
                         </p>
                       )}
 
                       {movement.description && (
-                        <p className="mt-1 text-sm text-textSecondary">
+                        <p className="mt-1 break-words text-sm text-textSecondary">
                           {movement.description}
                         </p>
                       )}
+
+                      {movement.categories?.name &&
+                        !MASTER_CATEGORY_NAMES.some(
+                          (name) =>
+                            normalizeName(name) ===
+                            normalizeName(movement.categories.name)
+                        ) && (
+                          <p className="mt-2 text-xs font-bold text-amber-300">
+                            Partida anterior pendiente de reclasificación
+                          </p>
+                        )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
                       <p
-                        className={`text-xl font-bold ${
+                        className={`break-words text-xl font-bold ${
                           movement.type === "ingreso"
                             ? "text-secondary"
                             : movement.type === "inversion"
-                            ? "text-primary"
-                            : "text-red-400"
+                              ? "text-primary"
+                              : "text-red-400"
                         }`}
                       >
-                        {movement.currency}
-                        {movement.amount}
+                        {formatMoney(
+                          movement.amount,
+                          movement.currency
+                        )}
                       </p>
 
                       <button
+                        type="button"
                         onClick={() => editMovement(movement)}
                         className="rounded-full border border-primary/40 px-4 py-2 text-sm font-bold text-primary"
                       >
@@ -1085,17 +1663,18 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => deleteMovement(movement.id)}
                         className="rounded-full border border-red-400/40 px-4 py-2 text-sm font-bold text-red-400"
                       >
                         Eliminar
                       </button>
                     </div>
-                  </div>
+                  </article>
                 ))
               )}
             </div>
-          </div>
+          </section>
         </main>
       </div>
     </div>
@@ -1103,5 +1682,3 @@ if (movement.type === "abono_deuda" && movement.liability_id) {
 }
 
 export default Movements
-
-               
